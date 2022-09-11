@@ -77,6 +77,7 @@ public class Test : MonoBehaviour
         foreach (var batch in batches)
         {
             Graphics.DrawMeshInstanced(grassMesh, 0, grassMaterial, batch.Select(a => a.matrix).ToList());
+            // Hi!
         }
     }
 
