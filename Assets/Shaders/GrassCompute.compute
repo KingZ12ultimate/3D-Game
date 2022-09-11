@@ -1,0 +1,31 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CalculateGrassPositions
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWStructuredBuffer<float3> PositionsBuffer;
+Texture2D<float4> HeightMap;
+SamplerState samplerHeightMap;
+
+int FieldSize, Density;
+float YOffset;
+
+[numthreads(8,8,1)]
+void CalculateGrassPositions (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    if (id.x < uint(FieldSize) && id.y < uint(FieldSize))
+    {
+        float fieldSize = float(FieldSize);
+        float density = float(Density);
+        float3 pos = 0.0f;
+        pos.xz = id.xy * (1.0f / density);
+        float2 uv = pos.xz;
+        uv.xy /= fieldSize;
+        uv.x = 1 - uv.x;
+        uv.y = 1 - uv.y;
+        float4 Displacement = HeightMap.SampleLevel(samplerHeightMap, uv, 0);
+        pos.y = Displacement.r + YOffset;
+        PositionsBuffer[id.x + id.y * FieldSize] = pos;
+    }
+}

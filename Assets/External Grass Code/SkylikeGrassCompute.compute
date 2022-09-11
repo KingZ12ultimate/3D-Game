@@ -1,0 +1,264 @@
+//
+// Created by @Forkercat on 03/04/2021.
+//
+// A URP grass shader using compute shader rather than geometry shader.
+// This file contains kernel function which works like a geometry function.
+// It defines the buffers needed to pass data from renderer C# script to here
+// and from here to our vertex and fragment functions.
+//
+// Note that data flows differently in different cases.
+// [Compute Shader]  Data Flow : Mesh -> Compute Shader -> Vertex Shader -> Fragment Shader
+// [Geometry shader] Data Flow : Mesh -> Vertex Shader -> Geometry Shader -> Fragment Shader
+//
+// Please check out NedMakesGames for learning compute shaders and MinionsArt for
+// the logic of generating grass, although the scripts are pretty different though.
+// Let me know if you have any question!
+//
+// Note that this shader works with the grass painter tool created by MinionsArt.
+// Checkout the website for the tool scripts. I also made an updated version that
+// introduces shortcuts just for convenience.
+// https://www.patreon.com/posts/geometry-grass-46836032
+//
+// References & Credits:
+// 1. GrassBladesCompute.hlsl (NedMakesGames, https://gist.github.com/NedMakesGames/3e67fabe49e2e3363a657ef8a6a09838)
+// 2. GrassGeometry.shader (MinionsArt, https://pastebin.com/VQHj0Uuc)
+//
+
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Main
+
+// Import some helper functions
+// ...
+
+// Define some constants
+#define PI          3.14159265358979323846
+#define TWO_PI      6.28318530717958647693
+
+// This describes a vertex on the source mesh
+struct SourceVertex
+{
+    float3 positionOS; // position in object space
+    float3 normalOS;
+    float2 uv;  // contains widthMultiplier, heightMultiplier
+    float3 color;
+};
+
+// Source buffers, arranged as a vertex buffer and index buffer
+StructuredBuffer<SourceVertex> _SourceVertices;
+
+// This describes a vertex on the generated mesh
+struct DrawVertex
+{
+    float3 positionWS; // The position in world space
+    float2 uv;
+    float3 brushColor;
+};
+
+// A triangle on the generated mesh
+struct DrawTriangle
+{
+    float3 normalWS;
+    float3 pivotWS;  // For Billboard Effect
+    DrawVertex vertices[3]; // The three points on the triangle
+};
+
+// A buffer containing the generated mesh
+AppendStructuredBuffer<DrawTriangle> _DrawTriangles;
+
+// The indirect draw call args, as described in the renderer script
+struct IndirectArgs
+{
+    uint numVerticesPerInstance;
+    uint numInstances;
+    uint startVertexIndex;
+    uint startInstanceIndex;
+};
+
+// The kernel will count the number of vertices, so this must be RW enabled
+RWStructuredBuffer<IndirectArgs> _IndirectArgsBuffer;
+
+// ----------------------------------------
+
+// Variables set by the renderer
+int _NumSourceVertices;
+
+// Local to world matrix
+float4x4 _LocalToWorld;
+
+// Time
+float _CurrentTime;
+
+// Texture
+half _TexHeight;
+half _TexWidth;
+float _TexRandomHeight;
+float _TexRandomWidth;
+float _TexRandomSize;
+float _TexFloatHeight;
+
+// Wind
+half _WindSpeed;
+float _WindStrength;
+float _WindLeaningDist;
+
+// Interactor
+half _InteractorRadius, _InteractorStrength;
+
+// Camera
+float _HideDistance;
+
+// Uniforms
+uniform float3 _MovingPosition;
+uniform float3 _CameraPositionWS;
+
+
+// ----------------------------------------
+
+// Helper Functions
+
+float rand(float3 co)
+{
+  return frac(
+          sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+}
+
+// A function to compute an rotation matrix which rotates a point
+// by angle radians around the given axis
+// By Keijiro Takahashi
+float3x3 AngleAxis3x3(float angle, float3 axis)
+{
+  float c, s;
+  sincos(angle, s, c);
+
+  float t = 1 - c;
+  float x = axis.x;
+  float y = axis.y;
+  float z = axis.z;
+
+  return float3x3(
+      t * x * x + c, t * x * y - s * z, t * x * z + s * y,
+      t * x * y + s * z, t * y * y + c, t * y * z - s * x,
+      t * x * z - s * y, t * y * z + s * x, t * z * z + c);
+}
+
+// Generate each vertex for output triangles
+DrawVertex GenerateVertex(float3 positionWS, float3 rightDirWS, float3 forwardDirWS,
+                          float startHeight, float verticalOffset, float horizonOffset,
+                          float2 windOffset, float windLeaningOffset, float2 interactorOffset,
+                          float2 uv, float3 color)
+{
+    DrawVertex output;
+    // Position
+    positionWS += float3(0, 1, 0) * (startHeight + verticalOffset);
+    positionWS += float3(1, 0, 0) * horizonOffset;
+    // Offset
+    positionWS += rightDirWS * (windOffset.x + windLeaningOffset - interactorOffset.x);  // right
+    positionWS += forwardDirWS * (windOffset.y - interactorOffset.y);  // forward
+    output.positionWS = positionWS;
+    // UV
+    output.uv = uv;
+    // Color
+    output.brushColor = color;
+    return output;
+}
+
+// ----------------------------------------
+
+// The main kernel
+[numthreads(128, 1, 1)]
+void Main(uint3 id : SV_DispatchThreadID)
+{
+    // Return if every triangle has been processed
+    if ((int)id.x >= _NumSourceVertices)
+    {
+        return;
+    }
+  
+    SourceVertex sv = _SourceVertices[id.x];
+
+    // Camera distance for culling
+    float3 positionWS = mul(_LocalToWorld, float4(sv.positionOS, 1)).xyz;
+    float distanceFromCamera = distance(positionWS, _CameraPositionWS);
+    if (distanceFromCamera > _HideDistance)
+    {
+        return;
+    }
+    
+    float3 normalOS = normalize(sv.normalOS);
+    float3 surfaceRightDirOS = normalize(cross(float3(0, 0, 1), normalOS));  // parallel to the surface
+    float3 surfaceForwardDirOS = normalize(cross(surfaceRightDirOS, sv.normalOS));
+    float3 worldUp = float3(0, 1, 0);  // world up rather than surface up!
+    
+    // Random size
+    _TexWidth *= sv.uv.x;  // UV.x == width multiplier (set in TexGeometryGrassPainter.cs)
+    _TexHeight *= sv.uv.y;  // UV.y == height multiplier (set in TexGeometryGrassPainter.cs)
+    
+    _TexWidth *= clamp(rand(sv.positionOS.zyx), 1 - _TexRandomWidth, 1 + _TexRandomWidth);
+    _TexHeight *= clamp(rand(sv.positionOS.xyz), 1 - _TexRandomHeight, 1 + _TexRandomHeight);
+    // for uniform size
+    float sizeMultiplier = clamp(rand(sv.positionOS.yxz), 1 - _TexRandomSize, 1 + _TexRandomSize);
+    _TexWidth *= sizeMultiplier;
+    _TexHeight *= sizeMultiplier;
+  
+    // Wind
+    float3 v0 = sv.positionOS.xyz;
+    float2 windOffset = float2(sin(_CurrentTime.x * _WindSpeed + v0.x)
+                                  + sin(_CurrentTime.x * _WindSpeed + v0.z * 2)
+                                  + sin(_CurrentTime.x * _WindSpeed * 0.1 + v0.x),  // right
+                               cos(_CurrentTime.x * _WindSpeed + v0.x * 2)
+                                  + cos(_CurrentTime.x * _WindSpeed + v0.z));  // forward
+    float windLeaningOffset = windOffset.x * _WindLeaningDist * 0.01;
+    windOffset *= _WindStrength * 0.1;
+  
+    // Interactivity
+    float3 dis = distance(_MovingPosition, positionWS);
+    float3 radius = 1 - saturate(dis / _InteractorRadius);
+    // in world radius based on objects interaction radius
+    float2 interactorOffset = positionWS.xz - _MovingPosition.xz; // position comparison
+    interactorOffset *= radius; // position multiplied by radius for falloff
+    // increase strength
+    interactorOffset = clamp(interactorOffset.xy * _InteractorStrength, -1, 1);
+
+    // Convert directional vectors to world space
+    float3 surfaceRightDirWS = normalize(mul(_LocalToWorld, float4(surfaceRightDirOS, 0)).xyz);
+    float3 surfaceForwardDirWS = normalize(mul(_LocalToWorld, float4(surfaceForwardDirOS, 0)).xyz);
+  
+    // Bottom-Left Triangle
+    DrawTriangle tri = (DrawTriangle) 0;
+    tri.vertices[0] = GenerateVertex(positionWS, surfaceRightDirWS, surfaceForwardDirWS,
+                                     _TexFloatHeight, 0, -_TexWidth / 2, windOffset, -windLeaningOffset,
+                                     interactorOffset, float2(1, 0), sv.color);
+    tri.vertices[1] = GenerateVertex(positionWS, surfaceRightDirWS, surfaceForwardDirWS,
+                                     _TexFloatHeight, 0, _TexWidth / 2, windOffset, -windLeaningOffset,
+                                     interactorOffset, float2(0, 0), sv.color);
+    tri.vertices[2] = GenerateVertex(positionWS, surfaceRightDirWS, surfaceForwardDirWS,
+                                     _TexFloatHeight, _TexHeight, -_TexWidth / 2, windOffset, windLeaningOffset,
+                                     interactorOffset, float2(1, 1), sv.color);
+    tri.normalWS = worldUp;
+    float3 pivotWS = (tri.vertices[1].positionWS + tri.vertices[2].positionWS) / 2.0;
+    tri.pivotWS = pivotWS;
+  
+    _DrawTriangles.Append(tri);
+
+    // Top-Right Triangle
+    tri = (DrawTriangle) 0;
+    tri.vertices[0] = GenerateVertex(positionWS, surfaceRightDirWS, surfaceForwardDirWS,
+                                     _TexFloatHeight, 0, _TexWidth / 2, windOffset, -windLeaningOffset,
+                                     interactorOffset, float2(0, 0), sv.color);
+    tri.vertices[1] = GenerateVertex(positionWS, surfaceRightDirWS, surfaceForwardDirWS,
+                                     _TexFloatHeight, _TexHeight, _TexWidth / 2, windOffset, windLeaningOffset,
+                                     interactorOffset, float2(0, 1), sv.color);
+    tri.vertices[2] = GenerateVertex(positionWS, surfaceRightDirWS, surfaceForwardDirWS,
+                                     _TexFloatHeight, _TexHeight, -_TexWidth / 2, windOffset, windLeaningOffset,
+                                     interactorOffset, float2(1, 1), sv.color);
+  
+    tri.normalWS = worldUp;
+    tri.pivotWS = pivotWS;  // two triangles share the same pivot
+    _DrawTriangles.Append(tri);
+
+  
+    // InterlockedAdd(a, b) adds b to a and stores the value in a. It is thread-safe
+    // This call counts the number of vertices, storing it in the indirect arguments
+    // This tells the renderer how many vertices are in the mesh in DrawProcedural
+    InterlockedAdd(_IndirectArgsBuffer[0].numVerticesPerInstance, 3 * 2);  // 2 triangles
+}
