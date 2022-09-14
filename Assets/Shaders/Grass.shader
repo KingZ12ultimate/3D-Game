@@ -2,7 +2,7 @@ Shader "Unlit/Grass"
 {
     Properties
     {
-        _Albedo1("Albedo 1", Color) = (1, 1, 1)
+        _MainColor("Main Color", Color) = (1, 1, 1)
         _Albedo2("Albedo 2", Color) = (1, 1, 1)
         _AOColor("Ambient Occlusion", Color) = (1, 1, 1)
         _TipColor("Tip Color", Color) = (1, 1, 1)
@@ -27,7 +27,8 @@ Shader "Unlit/Grass"
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            
+            #pragma multi_compile_instancing
+
             #pragma target 4.5
 
             #include "UnityCG.cginc"
@@ -47,6 +48,7 @@ Shader "Unlit/Grass"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4 _MainColor;
 
             v2f vert (appdata v)
             {
@@ -57,10 +59,10 @@ Shader "Unlit/Grass"
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            fixed4 frag(v2f i) : SV_Target
             {
                 // sample the texture
-                fixed4 col = tex2D(_MainTex, i.uv);
+                fixed4 col = _MainColor;
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;

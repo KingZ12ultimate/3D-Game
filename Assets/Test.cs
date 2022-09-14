@@ -15,7 +15,6 @@ public class Test : MonoBehaviour
     [Range(1, 20)]
     public int density = 1;
     public int scale;
-    private float yOffset;
     private ComputeBuffer positionsBuffer;
     private Vector3[] positionsArray;
     private List<List<GrassData>> batches = new List<List<GrassData>>();
@@ -24,6 +23,7 @@ public class Test : MonoBehaviour
     static readonly int fieldSizeID = Shader.PropertyToID("FieldSize");
     static readonly int densityID = Shader.PropertyToID("Density");
     static readonly int heightMapID = Shader.PropertyToID("HeightMap");
+    static readonly int yScaleID = Shader.PropertyToID("YSCale");
 
     private struct GrassData
     {
@@ -61,6 +61,7 @@ public class Test : MonoBehaviour
         initializeGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
         initializeGrassShader.SetInt(fieldSizeID, fieldSize);
         initializeGrassShader.SetInt(densityID, density);
+        initializeGrassShader.SetFloat(yScaleID, terrain.terrainData.heightmapScale.y);
         initializeGrassShader.SetTexture(0, heightMapID, terrainHeightMap);
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         positionsBuffer.GetData(positionsArray);
@@ -77,7 +78,6 @@ public class Test : MonoBehaviour
         foreach (var batch in batches)
         {
             Graphics.DrawMeshInstanced(grassMesh, 0, grassMaterial, batch.Select(a => a.matrix).ToList());
-            // Hi!
         }
     }
 
@@ -101,7 +101,7 @@ public class Test : MonoBehaviour
     private void AddObject(List<GrassData> batch, int i)
     {
         Vector3 pos = positionsArray[i];
-        batch.Add(new GrassData(pos, new Vector3(scale, scale, scale), Quaternion.identity));
+        batch.Add(new GrassData(pos, new Vector3(scale, scale, scale), Quaternion.Euler(0, 90, 90)));
     }
     
     private List<GrassData> BuildNewBatch()
