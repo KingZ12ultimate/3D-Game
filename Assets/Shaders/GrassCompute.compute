@@ -23,7 +23,7 @@ void CalculateGrassPositions (uint3 id : SV_DispatchThreadID)
         float2 uv = pos.xz;
         uv.xy /= fieldSize;
         float4 Displacement = HeightMap.SampleLevel(samplerHeightMap, uv, 0);
-        pos.y = Displacement.r * YScale;
+        pos.y = Displacement.a * YScale;
         PositionsBuffer[id.x + id.y * FieldSize] = pos;
     }
 }
