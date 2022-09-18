@@ -1,13 +1,11 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CalculateGrassPositions
 
-#include "UnityCG.cginc"
-
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWStructuredBuffer<float3> PositionsBuffer;
 Texture2D<float4> HeightMap;
-sampler2D samplerHeightMap;
+SamplerState samplerHeightMap;
 
 int FieldSize, Density;
 float YScale;
@@ -24,7 +22,8 @@ void CalculateGrassPositions (uint3 id : SV_DispatchThreadID)
         pos.xz = id.xy * (1.0f / density);
         float2 uv = pos.xz;
         uv.xy /= fieldSize;
-        pos.y = UnpackHeightmap(tex2D(samplerHeightMap, uv));
+        float4 Displacement = HeightMap.SampleLevel(samplerHeightMap, uv, 0);
+        pos.y = Displacement.r * YScale;
         PositionsBuffer[id.x + id.y * FieldSize] = pos;
     }
 }

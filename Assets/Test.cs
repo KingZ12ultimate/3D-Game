@@ -65,10 +65,6 @@ public class Test : MonoBehaviour
         initializeGrassShader.SetTexture(0, heightMapID, terrainHeightMap);
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         positionsBuffer.GetData(positionsArray);
-        for (int i = 0; i < positionsArray.Length; i++)
-        {
-            Debug.Log(positionsArray[i]);
-        }
     }
 
     private void OnDisable()
