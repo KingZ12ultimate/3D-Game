@@ -4,11 +4,20 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWStructuredBuffer<float3> PositionsBuffer;
-Texture2D<float4> HeightMap;
-SamplerState samplerHeightMap;
+Texture2D<float4> _Heightmap;
+SamplerState sampler_Heightmap;
 
 int FieldSize, Density;
 float YScale;
+
+float UnpackHeightmap(float4 height)
+{
+#if (API_HAS_GUARANTEED_R16_SUPPORT)
+    return height.r;
+#else
+    return (height.r + height.g * 256.0f) / 257.0f; // (255.0f * height.r + 255.0f * 256.0f * height.g) / 65535.0f
+#endif
+}
 
 [numthreads(8,8,1)]
 void CalculateGrassPositions (uint3 id : SV_DispatchThreadID)
@@ -18,12 +27,12 @@ void CalculateGrassPositions (uint3 id : SV_DispatchThreadID)
     {
         float fieldSize = float(FieldSize);
         float density = float(Density);
+        float yScale = float(YScale);
         float3 pos = 0.0f;
         pos.xz = id.xy * (1.0f / density);
         float2 uv = pos.xz;
-        uv.xy /= fieldSize;
-        float4 Displacement = HeightMap.SampleLevel(samplerHeightMap, uv, 0);
-        pos.y = Displacement.r * YScale;
+        uv.xy /= 2048.0f;
+        pos.y += UnpackHeightmap(_Heightmap.SampleLevel(sampler_Heightmap, uv, 0)) * yScale;
         PositionsBuffer[id.x + id.y * FieldSize] = pos;
     }
 }

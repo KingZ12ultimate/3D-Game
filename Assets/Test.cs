@@ -8,7 +8,7 @@ public class Test : MonoBehaviour
     public Mesh grassMesh;
     public Material grassMaterial;
     public Terrain terrain;
-    public RenderTexture terrainHeightMap;
+    public Texture2D terrainHeightMap;
     public ComputeShader initializeGrassShader;
     
     public int fieldSize = 1;
@@ -22,8 +22,8 @@ public class Test : MonoBehaviour
     static readonly int positionsBufferID = Shader.PropertyToID("PositionsBuffer");
     static readonly int fieldSizeID = Shader.PropertyToID("FieldSize");
     static readonly int densityID = Shader.PropertyToID("Density");
-    static readonly int heightMapID = Shader.PropertyToID("HeightMap");
-    static readonly int yScaleID = Shader.PropertyToID("YSCale");
+    static readonly int yScaleID = Shader.PropertyToID("YScale");
+    static readonly int heightMapID = Shader.PropertyToID("_Heightmap");
 
     private struct GrassData
     {
@@ -46,10 +46,15 @@ public class Test : MonoBehaviour
         }
     }
 
+    private void printArray<T>(T[] arr)
+    {
+        for (int i = 0; i < arr.Length; i++)
+            Debug.Log(arr[i]);
+    }
+
     private void Awake()
     {
         terrain = GetComponent<Terrain>();
-        terrainHeightMap = terrain.terrainData.heightmapTexture;
         fieldSize = Mathf.FloorToInt(terrain.terrainData.size.x) / 16;
         fieldSize *= density;
         positionsBuffer = new ComputeBuffer(fieldSize * fieldSize, 3 * sizeof(float));
@@ -59,18 +64,22 @@ public class Test : MonoBehaviour
     private void OnEnable()
     {
         initializeGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
+        initializeGrassShader.SetTexture(0, heightMapID, terrainHeightMap);
         initializeGrassShader.SetInt(fieldSizeID, fieldSize);
         initializeGrassShader.SetInt(densityID, density);
         initializeGrassShader.SetFloat(yScaleID, terrain.terrainData.heightmapScale.y);
-        initializeGrassShader.SetTexture(0, heightMapID, terrainHeightMap);
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         positionsBuffer.GetData(positionsArray);
+        //printArray<Vector3>(positionsArray);
     }
 
     private void OnDisable()
     {
-        positionsBuffer.Release();
-        positionsBuffer = null;
+        if (positionsBuffer != null)
+        {
+            positionsBuffer.Release();
+            positionsBuffer = null;
+        }
     }
 
     private void RenderBatches()

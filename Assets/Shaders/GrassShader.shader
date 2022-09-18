@@ -1,37 +1,24 @@
-Shader "Unlit/Grass"
+Shader "Unlit/GrassShader"
 {
     Properties
     {
-        _MainColor("Main Color", Color) = (1, 1, 1)
-        _Albedo2("Albedo 2", Color) = (1, 1, 1)
-        _AOColor("Ambient Occlusion", Color) = (1, 1, 1)
-        _TipColor("Tip Color", Color) = (1, 1, 1)
-        _Scale("Scale", Range(0.0, 2.0)) = 0.0
-        _Droop("Droop", Range(0.0, 10.0)) = 0.0
-        _FogColor("Fog Color", Color) = (1, 1, 1)
-        _FogDensity("Fog Density", Range(0.0, 1.0)) = 0.0
-        _FogOffset("Fog Offset", Range(0.0, 10.0)) = 0.0
+        _HeightmapTex ("Texture", 2D) = "white" {}
+        _MainColor ("Color", Color) = (1, 0, 0, 1)
     }
     SubShader
     {
-        Cull Off
-        Zwrite On
-
-        Tags {
-            "RenderType"="Transparent"
-            "Queue"="Transparent"
-        }
+        Tags { "RenderType"="Opaque" }
+        LOD 100
 
         Pass
         {
-            HLSLPROGRAM
+            CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_instancing
 
-            #pragma target 4.5
-
             #include "UnityCG.cginc"
+            #include "Packages/com.unity.terrain-tools/Shaders/TerrainTools.hlsl"
 
             struct appdata
             {
@@ -46,7 +33,7 @@ Shader "Unlit/Grass"
                 float4 vertex : SV_POSITION;
             };
 
-            sampler2D _MainTex;
+            sampler2D _HeightmapTex;
             float4 _MainTex_ST;
             float4 _MainColor;
 
@@ -55,19 +42,16 @@ Shader "Unlit/Grass"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            fixed4 frag (v2f i) : SV_Target
             {
                 // sample the texture
                 fixed4 col = _MainColor;
-                // apply fog
-                UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;
             }
-            ENDHLSL
+            ENDCG
         }
     }
 }
