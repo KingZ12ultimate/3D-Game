@@ -2,15 +2,7 @@ Shader "Unlit/Grass"
 {
     Properties
     {
-        _MainColor("Main Color", Color) = (1, 1, 1)
-        _Albedo2("Albedo 2", Color) = (1, 1, 1)
-        _AOColor("Ambient Occlusion", Color) = (1, 1, 1)
-        _TipColor("Tip Color", Color) = (1, 1, 1)
-        _Scale("Scale", Range(0.0, 2.0)) = 0.0
-        _Droop("Droop", Range(0.0, 10.0)) = 0.0
-        _FogColor("Fog Color", Color) = (1, 1, 1)
-        _FogDensity("Fog Density", Range(0.0, 1.0)) = 0.0
-        _FogOffset("Fog Offset", Range(0.0, 10.0)) = 0.0
+        _MainColor("Main Color", Color) = (1, 1, 1, 1)
     }
     SubShader
     {
