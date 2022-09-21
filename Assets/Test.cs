@@ -23,6 +23,7 @@ public class Test : MonoBehaviour
     static readonly int fieldSizeID = Shader.PropertyToID("FieldSize");
     static readonly int densityID = Shader.PropertyToID("Density");
     static readonly int yScaleID = Shader.PropertyToID("YScale");
+    static readonly int terrainSizeID = Shader.PropertyToID("TerrainSize");
     static readonly int heightMapID = Shader.PropertyToID("_Heightmap");
 
     private struct GrassData
@@ -68,6 +69,7 @@ public class Test : MonoBehaviour
         initializeGrassShader.SetInt(fieldSizeID, fieldSize);
         initializeGrassShader.SetInt(densityID, density);
         initializeGrassShader.SetFloat(yScaleID, terrain.terrainData.heightmapScale.y);
+        initializeGrassShader.SetFloat(terrainSizeID, terrain.terrainData.size.x);
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         positionsBuffer.GetData(positionsArray);
         //printArray<Vector3>(positionsArray);

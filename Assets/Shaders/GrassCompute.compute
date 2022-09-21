@@ -8,7 +8,7 @@ Texture2D<float4> _Heightmap;
 SamplerState sampler_Heightmap;
 
 int FieldSize, Density;
-float YScale;
+float YScale, TerrainSize;
 
 float UnpackHeightmap(float4 height)
 {
@@ -28,10 +28,11 @@ void CalculateGrassPositions (uint3 id : SV_DispatchThreadID)
         float fieldSize = float(FieldSize);
         float density = float(Density);
         float yScale = float(YScale);
+        float terrainSize = float(TerrainSize);
         float3 pos = 0.0f;
         pos.xz = id.xy * (1.0f / density);
         float2 uv = pos.xz;
-        uv.xy /= 2048.0f;
+        uv.xy /= terrainSize;
         pos.y += UnpackHeightmap(_Heightmap.SampleLevel(sampler_Heightmap, uv, 0)) * yScale;
         PositionsBuffer[id.x + id.y * FieldSize] = pos;
     }
