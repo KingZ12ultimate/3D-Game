@@ -1,0 +1,34 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Scan
+
+#define NUM_GROUP_THREADS_X 128
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+StructuredBuffer<int> Input;
+RWStructuredBuffer<int> Output;
+
+groupshared uint temp[2 * NUM_GROUP_THREADS_X];
+
+[numthreads(NUM_GROUP_THREADS_X,1,1)]
+void Scan(uint3 id : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int dtID = int(id.x);
+	int gtID = int(groupThreadID.x);
+	int numElements = NUM_GROUP_THREADS_X;
+	int pout = 0, pin = 1;
+
+	temp[gtID] = gtID > 0 ? Input[gtID - 1] : 0;
+	GroupMemoryBarrierWithGroupSync();
+	for (int offset = 1; offset < numElements; offset *= 2)
+	{
+		pout = 1 - pout;
+		pin = 1 - pout;
+
+		if (gtID >= offset)
+			temp[pout * numElements + gtID] += temp[pin * numElements + gtID - offset];
+		else
+			temp[pout * numElements + gtID] = temp[pin * numElements + gtID];
+		GroupMemoryBarrierWithGroupSync();
+	}
+	Output[gtID] = temp[pout * numElements + gtID];
+}
