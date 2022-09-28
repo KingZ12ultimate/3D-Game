@@ -9,17 +9,20 @@ public class Test : MonoBehaviour
     public Material grassMaterial;
     public Terrain terrain;
     public Texture2D terrainHeightMap;
-    public ComputeShader initializeGrassShader;
-    
-    public int fieldSize = 1;
+    public ComputeShader initializeGrassShader, cullGrassShader;
+    private ComputeBuffer positionsBuffer, voteBuffer, scanBuffer, culledGrassPositionsBuffer;
+
     [Range(1, 20)]
     public int density = 1;
+    public int fieldSize = 1;
     public int scale;
-    private ComputeBuffer positionsBuffer;
     private Vector3[] positionsArray;
     private List<List<GrassData>> batches = new List<List<GrassData>>();
 
     static readonly int positionsBufferID = Shader.PropertyToID("PositionsBuffer");
+    static readonly int voteBufferID = Shader.PropertyToID("VoteBuffer");
+    static readonly int scanBufferID = Shader.PropertyToID("ScanBuffer");
+    static readonly int culledGrassBufferID = Shader.PropertyToID("CulledGrassBuffer");
     static readonly int fieldSizeID = Shader.PropertyToID("FieldSize");
     static readonly int densityID = Shader.PropertyToID("Density");
     static readonly int yScaleID = Shader.PropertyToID("YScale");
@@ -47,10 +50,17 @@ public class Test : MonoBehaviour
         }
     }
 
-    private void printArray<T>(T[] arr)
+    private void PrintArray<T>(T[] arr)
     {
         for (int i = 0; i < arr.Length; i++)
             Debug.Log(arr[i]);
+    }
+
+    private void CullGrass()
+    {
+        voteBuffer = new ComputeBuffer(positionsBuffer.count, sizeof(int));
+        scanBuffer = new ComputeBuffer(positionsBuffer.count, sizeof(int));
+        culledGrassPositionsBuffer = new ComputeBuffer(positionsBuffer.count, sizeof(int));
     }
 
     private void Awake()
@@ -72,7 +82,6 @@ public class Test : MonoBehaviour
         initializeGrassShader.SetFloat(terrainSizeID, terrain.terrainData.size.x);
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         positionsBuffer.GetData(positionsArray);
-        //printArray<Vector3>(positionsArray);
     }
 
     private void OnDisable()

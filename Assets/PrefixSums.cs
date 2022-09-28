@@ -16,7 +16,7 @@ public class PrefixSums : MonoBehaviour
         dataArray = new int[size];
         for (int i = 0; i < size; i++)
         {
-            dataArray[i] = Random.Range(0, 10);
+            dataArray[i] = Random.Range(0, 2);
             Debug.Log(dataArray[i]);
         }
         inputBuffer = new ComputeBuffer(size, sizeof(int));
@@ -38,6 +38,10 @@ public class PrefixSums : MonoBehaviour
         {
             Debug.Log(dataArray[i]);
         }
+        inputBuffer.Release();
+        inputBuffer = null;
+        outputBuffer.Release();
+        outputBuffer = null;
     }
 
     // Update is called once per frame

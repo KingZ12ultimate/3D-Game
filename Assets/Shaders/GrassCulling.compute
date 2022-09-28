@@ -1,0 +1,62 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Vote
+#pragma kernel Scan
+#pragma kernel Compact
+
+#define NUM_GROUP_THREADS_X 128
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+StructuredBuffer<float3> PositionsBuffer;
+RWStructuredBuffer<int> VoteBuffer;
+RWStructuredBuffer<int> ScanBuffer;
+RWStructuredBuffer<int> CulledGrassBuffer;
+StructuredBuffer<int> Input;
+RWStructuredBuffer<int> Output;
+
+groupshared uint temp[NUM_GROUP_THREADS_X];
+float4x4 UNITY_MATRIX_VP;
+float3 CameraPosition;
+float Distance;
+
+bool InRange(float val, float min, float max)
+{
+    return val < max && val > min;
+}
+
+[numthreads(NUM_GROUP_THREADS_X, 1, 1)]
+void Vote(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
+{
+    int globalID = int(dispatchThreadID.x);
+    int localID = int(groupThreadID.x);
+    float4 pos = float4(PositionsBuffer[globalID].xyz, 1.0f);
+    float4 viewSpace = mul(UNITY_MATRIX_VP, pos);
+    float3 clipSpace = viewSpace.xyz;
+    clipSpace.xy /= viewSpace.w;
+    clipSpace.x = clipSpace.x / 2.0f + 0.5f;
+    clipSpace.y = clipSpace.y / 2.0f + 0.5f;
+    clipSpace.z = viewSpace.w;
+    bool inView = InRange(clipSpace.x, 0.0f, 1.0f) && InRange(clipSpace.x, 0.0f, 1.0f) && clipSpace.z > 0;
+    bool inDistance = distance(CameraPosition, pos.xyz) < Distance;
+    VoteBuffer[globalID] = inView * inDistance;
+}
+
+[numthreads(NUM_GROUP_THREADS_X,1,1)]
+void Scan(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
+{
+	int localID = int(groupThreadID.x);
+    temp[localID] = localID > 0 ? Input[localID - 1] : 0;
+    GroupMemoryBarrierWithGroupSync();
+    for (int offset = 1; offset < NUM_GROUP_THREADS_X; offset <<= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        if (localID >= offset)
+            temp[localID] += temp[localID - offset];
+    }
+    Output[localID] = temp[localID];
+}
+
+[numthreads(NUM_GROUP_THREADS_X, 1, 1)]
+void Compact(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
+{
+    
+}
