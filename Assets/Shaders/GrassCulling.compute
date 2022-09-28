@@ -9,9 +9,7 @@
 StructuredBuffer<float3> PositionsBuffer;
 RWStructuredBuffer<int> VoteBuffer;
 RWStructuredBuffer<int> ScanBuffer;
-RWStructuredBuffer<int> CulledGrassBuffer;
-StructuredBuffer<int> Input;
-RWStructuredBuffer<int> Output;
+RWStructuredBuffer<float3> CulledGrassBuffer;
 
 groupshared uint temp[NUM_GROUP_THREADS_X];
 float4x4 UNITY_MATRIX_VP;
@@ -31,10 +29,10 @@ void Vote(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV
     float4 pos = float4(PositionsBuffer[globalID].xyz, 1.0f);
     float4 viewSpace = mul(UNITY_MATRIX_VP, pos);
     float3 clipSpace = viewSpace.xyz;
-    clipSpace.xy /= viewSpace.w;
+    clipSpace /= -viewSpace.w;
     clipSpace.x = clipSpace.x / 2.0f + 0.5f;
     clipSpace.y = clipSpace.y / 2.0f + 0.5f;
-    clipSpace.z = viewSpace.w;
+    clipSpace.z = -viewSpace.w;
     bool inView = InRange(clipSpace.x, 0.0f, 1.0f) && InRange(clipSpace.x, 0.0f, 1.0f) && clipSpace.z > 0;
     bool inDistance = distance(CameraPosition, pos.xyz) < Distance;
     VoteBuffer[globalID] = inView * inDistance;
@@ -44,7 +42,7 @@ void Vote(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV
 void Scan(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
 {
 	int localID = int(groupThreadID.x);
-    temp[localID] = localID > 0 ? Input[localID - 1] : 0;
+    temp[localID] = localID > 0 ? VoteBuffer[localID - 1] : 0;
     GroupMemoryBarrierWithGroupSync();
     for (int offset = 1; offset < NUM_GROUP_THREADS_X; offset <<= 1)
     {
@@ -52,11 +50,16 @@ void Scan(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV
         if (localID >= offset)
             temp[localID] += temp[localID - offset];
     }
-    Output[localID] = temp[localID];
+    ScanBuffer[localID] = temp[localID];
 }
 
 [numthreads(NUM_GROUP_THREADS_X, 1, 1)]
 void Compact(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
 {
-    
+    int localID = int(groupThreadID.x);
+    if (VoteBuffer[localID] == 1)
+    {
+        int index = ScanBuffer[localID];
+        CulledGrassBuffer[index] = PositionsBuffer[localID];
+    }
 }

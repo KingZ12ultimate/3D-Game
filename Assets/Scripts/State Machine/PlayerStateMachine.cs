@@ -126,6 +126,7 @@ public class PlayerStateMachine : MonoBehaviour
         HandleRotation();
         currentState.UpdateStates();
         // Debug.Log("Super State: " + currentState + ", SubState: " + currentState.CurrentSubState);
+
         characterController.Move(appliedMovement * Time.deltaTime);
     }
 

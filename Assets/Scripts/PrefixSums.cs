@@ -22,9 +22,9 @@ public class PrefixSums : MonoBehaviour
         inputBuffer = new ComputeBuffer(size, sizeof(int));
         outputBuffer = new ComputeBuffer(size, sizeof(int));
         inputBuffer.SetData(dataArray);
-        prefixSumsShader.SetBuffer(0, "Input", inputBuffer);
-        prefixSumsShader.SetBuffer(0, "Output", outputBuffer);
-        prefixSumsShader.Dispatch(0, Mathf.CeilToInt(size / 128f), 1, 1);
+        prefixSumsShader.SetBuffer(1, "Input", inputBuffer);
+        prefixSumsShader.SetBuffer(1, "Output", outputBuffer);
+        prefixSumsShader.Dispatch(1, Mathf.CeilToInt(size / 128f), 1, 1);
         for (int i = 1; i < size; i++)
         {
             dataArray[i] += dataArray[i - 1];
