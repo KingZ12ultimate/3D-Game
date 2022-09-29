@@ -90,6 +90,7 @@ public class Grass : MonoBehaviour
         initializeGrassShader.SetFloat(terrainSizeID, terrain.terrainData.size.x);
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         // Debug.Log(System.Runtime.InteropServices.Marshal.SizeOf(typeof(GrassData)));
+        positionsBuffer.GetData(positions);
     }
 
     private void CullGrass()
@@ -162,10 +163,13 @@ public class Grass : MonoBehaviour
         return new List<GrassData>();
     }
 
+    bool flow = true;
+
     // Update is called once per frame
     void Update()
     {
-        CullGrass();
+        // CullGrass();
+        
         RenderBatches();
     }
 }

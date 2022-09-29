@@ -10,6 +10,7 @@ public class PlayerStateMachine : MonoBehaviour
     Animator animator;
     CharacterController characterController;
     PlayerInput playerInput;
+    Camera cam;
 
     // Variables for player input data
     bool isMovementPressed;
@@ -50,6 +51,7 @@ public class PlayerStateMachine : MonoBehaviour
     #region Getters And Setters (Properties)
     public PlayerBaseState CurrentState { get { return currentState; } set { currentState = value; } }
     public Animator Animator { get { return animator; } }
+    public Camera Camera { get { return Camera.main; } }
     public CharacterController CharacterController { get { return characterController; } }
     public Coroutine CurrentJumpResetRoutine { get { return currentJumpResetRoutine; } set { currentJumpResetRoutine = value; } }
     public Dictionary<int, float> InitialJumpVelocities { get { return initialJumpVelocities; } }
@@ -79,6 +81,7 @@ public class PlayerStateMachine : MonoBehaviour
         animator = GetComponent<Animator>();
         characterController = GetComponent<CharacterController>();
         playerInput = new PlayerInput();
+        cam = Camera.main;
 
         states = new PlayerStateFactory(this);
         currentState = states.Grounded();
@@ -126,13 +129,12 @@ public class PlayerStateMachine : MonoBehaviour
         HandleRotation();
         currentState.UpdateStates();
         // Debug.Log("Super State: " + currentState + ", SubState: " + currentState.CurrentSubState);
-
         characterController.Move(appliedMovement * Time.deltaTime);
     }
 
     void HandleRotation()
     {
-        Vector3 positionToLookAt = new Vector3(currentMovementInput.x, 0f, currentMovementInput.y);
+        Vector3 positionToLookAt = new Vector3(appliedMovement.x, 0f, appliedMovement.z);
         Quaternion currentRotation = transform.rotation;
         if (isMovementPressed)
         {

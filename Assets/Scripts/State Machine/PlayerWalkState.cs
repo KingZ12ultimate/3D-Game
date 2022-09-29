@@ -33,6 +33,9 @@ public class PlayerWalkState : PlayerBaseState
 
     public override void UpdateState()
     {
+        Vector3 cameraForward = StateMachine.Camera.transform.forward;
+        Vector3 cameraRight = StateMachine.Camera.transform.right;
+        StateMachine.CurrentMovementInput = ;
         StateMachine.AppliedMovementX = StateMachine.CurrentMovementInput.x;
         StateMachine.AppliedMovementZ = StateMachine.CurrentMovementInput.y;
         CheckSwitchStates();
