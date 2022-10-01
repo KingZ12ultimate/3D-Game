@@ -11,7 +11,7 @@ RWStructuredBuffer<int> VoteBuffer;
 RWStructuredBuffer<int> ScanBuffer;
 RWStructuredBuffer<float3> CulledGrassBuffer;
 
-groupshared uint temp[NUM_GROUP_THREADS_X];
+uint temp[NUM_GROUP_THREADS_X];
 float4x4 UNITY_MATRIX_VP;
 float3 CameraPosition;
 float Distance;
@@ -22,10 +22,9 @@ bool InRange(float val, float min, float max)
 }
 
 [numthreads(NUM_GROUP_THREADS_X, 1, 1)]
-void Vote(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
+void Vote(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
     int globalID = int(dispatchThreadID.x);
-    int localID = int(groupThreadID.x);
     float4 pos = float4(PositionsBuffer[globalID].xyz, 1.0f);
     float4 viewSpace = mul(UNITY_MATRIX_VP, pos);
     float3 clipSpace = viewSpace.xyz;
@@ -41,25 +40,24 @@ void Vote(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV
 [numthreads(NUM_GROUP_THREADS_X,1,1)]
 void Scan(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
 {
-	int localID = int(groupThreadID.x);
-    temp[localID] = localID > 0 ? VoteBuffer[localID - 1] : 0;
+    int globalID = int(dispatchThreadID.x);
+    temp[globalID] = globalID > 0 ? VoteBuffer[globalID - 1] : 0;
     GroupMemoryBarrierWithGroupSync();
     for (int offset = 1; offset < NUM_GROUP_THREADS_X; offset <<= 1)
     {
         GroupMemoryBarrierWithGroupSync();
-        if (localID >= offset)
-            temp[localID] += temp[localID - offset];
+        if (globalID >= offset)
+            temp[globalID] += temp[globalID - offset];
     }
-    ScanBuffer[localID] = temp[localID];
+    ScanBuffer[globalID] = temp[globalID];
 }
 
 [numthreads(NUM_GROUP_THREADS_X, 1, 1)]
 void Compact(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
 {
-    int localID = int(groupThreadID.x);
-    if (VoteBuffer[localID] == 1)
+    int globalID = int(dispatchThreadID.x);
+    if (VoteBuffer[globalID] == 1)
     {
-        int index = ScanBuffer[localID];
-        CulledGrassBuffer[index] = PositionsBuffer[localID];
+        CulledGrassBuffer[ScanBuffer[globalID]] = PositionsBuffer[globalID];
     }
 }

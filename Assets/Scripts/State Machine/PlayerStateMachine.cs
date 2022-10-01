@@ -134,7 +134,7 @@ public class PlayerStateMachine : MonoBehaviour
 
     void HandleRotation()
     {
-        Vector3 positionToLookAt = new Vector3(appliedMovement.x, 0f, appliedMovement.z);
+        Vector3 positionToLookAt = new Vector3(CurrentMovementInput.x, 0f, CurrentMovementInput.y);
         Quaternion currentRotation = transform.rotation;
         if (isMovementPressed)
         {

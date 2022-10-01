@@ -291,7 +291,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 451792376}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 244.2, z: 0}
+  m_LocalPosition: {x: 0, y: 244, z: 0}
   m_LocalScale: {x: 4, y: 4, z: 4}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1392,6 +1392,7 @@ GameObject:
   - component: {fileID: 1881306540}
   - component: {fileID: 1881306539}
   - component: {fileID: 1881306542}
+  - component: {fileID: 1881306543}
   m_Layer: 0
   m_Name: Terrain
   m_TagString: Untagged
@@ -1466,7 +1467,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1881306538}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 67688fbfc863ecf488134072a4c7edb1, type: 3}
   m_Name: 
@@ -1481,3 +1482,17 @@ MonoBehaviour:
   fieldSize: 1
   scale: 33
   cullDistance: 38
+--- !u!114 &1881306543
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1881306538}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 979fb1901f8a76d4796fbd0dde089503, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  prefixSumsShader: {fileID: 7200000, guid: 7ad81d82b28b8f048a161febb8dc41e5, type: 3}
+  size: 256

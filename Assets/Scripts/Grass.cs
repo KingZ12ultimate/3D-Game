@@ -22,6 +22,8 @@ public class Grass : MonoBehaviour
     private int numInstances;
     private int numThreadGroups;
     private Vector3[] positions;
+    private int[] debug0;
+    private Vector3[] debug1;
     private List<List<GrassData>> batches = new List<List<GrassData>>();
 
     // Initialize Grass Shader
@@ -78,6 +80,8 @@ public class Grass : MonoBehaviour
         culledGrassPositionsBuffer = new ComputeBuffer(numInstances, 3 * sizeof(float));
         positions = new Vector3[numInstances];
         numThreadGroups = Mathf.CeilToInt(numInstances / 128f);
+        debug0 = new int[numInstances];
+        debug1 = new Vector3[numInstances];
     }
 
     private void OnEnable()
@@ -91,10 +95,12 @@ public class Grass : MonoBehaviour
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         // Debug.Log(System.Runtime.InteropServices.Marshal.SizeOf(typeof(GrassData)));
         positionsBuffer.GetData(positions);
+        // PrintArray(positions);
     }
 
     private void CullGrass()
     {
+        positionsBuffer.SetData(positions);
         cullGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
         cullGrassShader.SetBuffer(0, voteBufferID, voteBuffer);
         cullGrassShader.SetVector(cameraPositionID, Camera.main.transform.position);
@@ -105,13 +111,32 @@ public class Grass : MonoBehaviour
         cullGrassShader.SetBuffer(1, scanBufferID, scanBuffer);
         cullGrassShader.Dispatch(1, numThreadGroups, 1, 1);
 
+        positionsBuffer.GetData(debug1);
+
         cullGrassShader.SetBuffer(2, positionsBufferID, positionsBuffer);
         cullGrassShader.SetBuffer(2, voteBufferID, voteBuffer);
         cullGrassShader.SetBuffer(2, scanBufferID, scanBuffer);
         cullGrassShader.SetBuffer(2, culledGrassBufferID, culledGrassPositionsBuffer);
         cullGrassShader.Dispatch(2, numThreadGroups, 1, 1);
+        positionsBuffer.GetData(debug1);
+        Vector3[] culledPositions = new Vector3[numInstances];
+        culledGrassPositionsBuffer.GetData(culledPositions);
+        UpdatePositions(culledPositions);
+    }
 
-        culledGrassPositionsBuffer.GetData(positions);
+    private void UpdatePositions(Vector3[] updatedPositions)
+    {
+        for (int i = 0; i < batches.Count; i++)
+        {
+            List<GrassData> currentBatch = batches[i];
+            for (int j = 0; j < currentBatch.Count; j++)
+            {
+                //if (updatedPositions[i * 1023 + j] == null) return;
+                GrassData temp = currentBatch[j];
+                temp.position = updatedPositions[i * 1023 + j];
+                currentBatch[j] = temp;
+            }
+        }
     }
 
     private void OnDisable()
@@ -136,40 +161,25 @@ public class Grass : MonoBehaviour
 
     void Start()
     {
-        int batchIdexNum = 0;
+        int batchIndexNum = 0;
         List<GrassData> currentBatch = new List<GrassData>();
-        for (int i = 0; i < positionsBuffer.count; i++)
+        for (int i = 0; i < numInstances; i++)
         {
-            AddObject(currentBatch, i);
-            batchIdexNum++;
-            if (batchIdexNum > 1023)
+            currentBatch.Add(new GrassData(Vector3.zero, Vector3.one * scale, Quaternion.Euler(0, 90, 90)));
+            batchIndexNum++;
+            if (batchIndexNum > 1023)
             {
                 batches.Add(currentBatch);
-                currentBatch = BuildNewBatch();
-                batchIdexNum = 0;
+                currentBatch = new List<GrassData>();
+                batchIndexNum = 0;
             }
         }
-        
     }
-
-    private void AddObject(List<GrassData> batch, int i)
-    {
-        Vector3 pos = positions[i];
-        batch.Add(new GrassData(pos, new Vector3(scale, scale, scale), Quaternion.Euler(0, 90, 90)));
-    }
-    
-    private List<GrassData> BuildNewBatch()
-    {
-        return new List<GrassData>();
-    }
-
-    bool flow = true;
 
     // Update is called once per frame
     void Update()
     {
-        // CullGrass();
-        
+        CullGrass();
         RenderBatches();
     }
 }
