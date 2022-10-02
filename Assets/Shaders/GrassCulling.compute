@@ -11,7 +11,7 @@ RWStructuredBuffer<int> VoteBuffer;
 RWStructuredBuffer<int> ScanBuffer;
 RWStructuredBuffer<float3> CulledGrassBuffer;
 
-uint temp[NUM_GROUP_THREADS_X];
+groupshared uint temp[NUM_GROUP_THREADS_X];
 float4x4 UNITY_MATRIX_VP;
 float3 CameraPosition;
 float Distance;
