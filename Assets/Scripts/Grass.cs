@@ -113,11 +113,11 @@ public class Grass : MonoBehaviour
 
         positionsBuffer.GetData(debug1);
 
-        cullGrassShader.SetBuffer(2, positionsBufferID, positionsBuffer);
-        cullGrassShader.SetBuffer(2, voteBufferID, voteBuffer);
-        cullGrassShader.SetBuffer(2, scanBufferID, scanBuffer);
-        cullGrassShader.SetBuffer(2, culledGrassBufferID, culledGrassPositionsBuffer);
-        cullGrassShader.Dispatch(2, numThreadGroups, 1, 1);
+        cullGrassShader.SetBuffer(3, positionsBufferID, positionsBuffer);
+        cullGrassShader.SetBuffer(3, voteBufferID, voteBuffer);
+        cullGrassShader.SetBuffer(3, scanBufferID, scanBuffer);
+        cullGrassShader.SetBuffer(3, culledGrassBufferID, culledGrassPositionsBuffer);
+        cullGrassShader.Dispatch(3, numThreadGroups, 1, 1);
         positionsBuffer.GetData(debug1);
         Vector3[] culledPositions = new Vector3[numInstances];
         culledGrassPositionsBuffer.GetData(culledPositions);

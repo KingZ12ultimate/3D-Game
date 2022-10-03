@@ -9,12 +9,17 @@
 StructuredBuffer<float3> PositionsBuffer;
 RWStructuredBuffer<int> VoteBuffer;
 RWStructuredBuffer<int> ScanBuffer;
+RWStructuredBuffer<int> GroupSumsBuffer;
+RWStructuredBuffer<int> GroupSumsInBuffer;
+RWStructuredBuffer<int> GroupSumsOutBuffer;
 RWStructuredBuffer<float3> CulledGrassBuffer;
 
 groupshared uint temp[NUM_GROUP_THREADS_X];
+groupshared uint groupSumsTemp[1024];
 float4x4 UNITY_MATRIX_VP;
 float3 CameraPosition;
 float Distance;
+int NumGroups;
 
 bool InRange(float val, float min, float max)
 {
@@ -38,19 +43,49 @@ void Vote(uint3 dispatchThreadID : SV_DispatchThreadID)
 }
 
 [numthreads(NUM_GROUP_THREADS_X,1,1)]
-void Scan(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
+void Scan(uint3 dispatchThreadID : SV_DispatchThreadID, uint groupID : SV_GroupID, uint3 groupThreadID : SV_GroupThreadID)
 {
     int globalID = int(dispatchThreadID.x);
-    temp[globalID] = globalID > 0 ? VoteBuffer[globalID - 1] : 0;
+    int localID = int(groupThreadID.x);
+    int groupID = int(groupID);
+    
+    int numElements = NUM_GROUP_THREADS_X;
+    temp[globalID] = localID > 0 ? VoteBuffer[globalID - 1] : 0;
+    
     GroupMemoryBarrierWithGroupSync();
-    for (int offset = 1; offset < NUM_GROUP_THREADS_X; offset <<= 1)
+    for (int offset = 1; offset < numElements; offset <<= 1)
     {
         GroupMemoryBarrierWithGroupSync();
         if (globalID >= offset)
             temp[globalID] += temp[globalID - offset];
     }
     ScanBuffer[globalID] = temp[globalID];
+    
+    if (localID == 0)
+    {
+        GroupSumsBuffer[groupID] = temp[numElements - 1];
+        temp[numElements - 1] = 0;
+    }
+    
+    ScanBuffer[globalID] = temp[globalID];
 }
+
+[numthreads(1024, 1, 1)]
+void ScanGroupSums(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
+{
+    int globalID = int(dispatchThreadID.x);
+    groupSumsTemp[globalID] = globalID > 0 ? GroupSumsInBuffer[globalID - 1] : 0;
+    
+    GroupMemoryBarrierWithGroupSync();
+    for (int offset = 1; offset < NumGroups; offset <<= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        if (globalID >= offset)
+            groupSumsTemp[globalID] += groupSumsTemp[globalID - offset];
+    }
+    GroupSumsOutBuffer[globalID] = groupSumsTemp[globalID];
+}
+
 
 [numthreads(NUM_GROUP_THREADS_X, 1, 1)]
 void Compact(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThreadID : SV_GroupThreadID)
