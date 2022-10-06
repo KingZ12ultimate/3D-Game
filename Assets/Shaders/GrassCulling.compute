@@ -3,7 +3,7 @@
 #pragma kernel Scan
 #pragma kernel Compact
 
-#define NUM_GROUP_THREADS_X 128
+#define NUM_GROUP_THREADS_X 64
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 StructuredBuffer<float3> PositionsBuffer;
@@ -14,8 +14,8 @@ RWStructuredBuffer<int> GroupSumsInBuffer;
 RWStructuredBuffer<int> GroupSumsOutBuffer;
 RWStructuredBuffer<float3> CulledGrassBuffer;
 
-groupshared uint temp[NUM_GROUP_THREADS_X];
-groupshared uint groupSumsTemp[1024];
+groupshared uint temp[2 * NUM_GROUP_THREADS_X];
+groupshared uint groupSumsTemp[2 * 1024];
 float4x4 UNITY_MATRIX_VP;
 float3 CameraPosition;
 float Distance;

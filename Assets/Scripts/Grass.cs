@@ -11,6 +11,7 @@ public class Grass : MonoBehaviour
     public Texture2D terrainHeightMap;
     public ComputeShader initializeGrassShader, cullGrassShader;
     private ComputeBuffer positionsBuffer, voteBuffer, scanBuffer, culledGrassPositionsBuffer;
+    private Camera cam;
 
     [Range(1, 20)]
     public int density = 1;
@@ -38,6 +39,7 @@ public class Grass : MonoBehaviour
     static readonly int voteBufferID = Shader.PropertyToID("VoteBuffer");
     static readonly int scanBufferID = Shader.PropertyToID("ScanBuffer");
     static readonly int culledGrassBufferID = Shader.PropertyToID("CulledGrassBuffer");
+    static readonly int matrixVPID = Shader.PropertyToID("UNITY_MATRIX_VP");
     static readonly int cameraPositionID = Shader.PropertyToID("CameraPosition");
     static readonly int distanceID = Shader.PropertyToID("Distacne");
 
@@ -70,6 +72,7 @@ public class Grass : MonoBehaviour
 
     private void Awake()
     {
+        cam = Camera.main;
         terrain = GetComponent<Terrain>();
         fieldSize = Mathf.FloorToInt(terrain.terrainData.size.x) / 16;
         fieldSize *= density;
@@ -100,18 +103,21 @@ public class Grass : MonoBehaviour
 
     private void CullGrass()
     {
+        Matrix4x4 V = cam.transform.worldToLocalMatrix;
+        Matrix4x4 P = cam.projectionMatrix;
+        Matrix4x4 VP = P * V;
+        
         positionsBuffer.SetData(positions);
         cullGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
         cullGrassShader.SetBuffer(0, voteBufferID, voteBuffer);
-        cullGrassShader.SetVector(cameraPositionID, Camera.main.transform.position);
+        cullGrassShader.SetMatrix(matrixVPID, VP);
+        cullGrassShader.SetVector(cameraPositionID, cam.transform.position);
         cullGrassShader.SetFloat(distanceID, cullDistance);
         cullGrassShader.Dispatch(0, numThreadGroups, 1, 1);
 
         cullGrassShader.SetBuffer(1, voteBufferID, voteBuffer);
         cullGrassShader.SetBuffer(1, scanBufferID, scanBuffer);
         cullGrassShader.Dispatch(1, numThreadGroups, 1, 1);
-
-        positionsBuffer.GetData(debug1);
 
         cullGrassShader.SetBuffer(3, positionsBufferID, positionsBuffer);
         cullGrassShader.SetBuffer(3, voteBufferID, voteBuffer);
