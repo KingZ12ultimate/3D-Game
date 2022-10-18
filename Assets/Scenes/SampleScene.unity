@@ -192,7 +192,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 22059692}
-  m_LocalRotation: {x: 0.16769603, y: 0.024696188, z: -0.0042023007, w: 0.9855204}
+  m_LocalRotation: {x: 0.16769604, y: 0.024696168, z: -0.0042022974, w: 0.9855204}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -494,7 +494,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 602760710}
-  m_LocalRotation: {x: 0.13178638, y: 0.024832558, z: -0.0033024414, w: 0.99096155}
+  m_LocalRotation: {x: 0.13178638, y: 0.024832524, z: -0.0033024368, w: 0.99096155}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -727,7 +727,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 795035512}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 49.142517, y: 281.7, z: 32.90149}
+  m_LocalPosition: {x: 49.142517, y: 239.1, z: 32.90149}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -859,7 +859,7 @@ Camera:
   m_FOVAxisMode: 0
   m_SensorSize: {x: 36, y: 24}
   m_LensShift: {x: 0, y: 0}
-  m_FocalLength: 50
+  m_FocalLength: 32.96973
   m_NormalizedViewPortRect:
     serializedVersion: 2
     x: 0
@@ -871,7 +871,7 @@ Camera:
   field of view: 40
   orthographic: 0
   orthographic size: 10
-  m_Depth: -1
+  m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -893,8 +893,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_LocalRotation: {x: 0.14974219, y: 0.024768561, z: -0.0037523978, w: 0.9884077}
-  m_LocalPosition: {x: 49.142517, y: 281.7, z: 32.90149}
+  m_LocalRotation: {x: 0.14974219, y: 0.024768528, z: -0.0037523927, w: 0.9884077}
+  m_LocalPosition: {x: 49.142517, y: 239.1, z: 32.90149}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -965,7 +965,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -4216859302048453862, guid: 82a2914d8f86c62488456950c8330e38, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 275.7
+      value: 233.1
       objectReference: {fileID: 0}
     - target: {fileID: -4216859302048453862, guid: 82a2914d8f86c62488456950c8330e38, type: 3}
       propertyPath: m_LocalPosition.z
@@ -1371,7 +1371,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1694577134}
-  m_LocalRotation: {x: 0.14974219, y: 0.024768554, z: -0.0037523962, w: 0.9884077}
+  m_LocalRotation: {x: 0.14974219, y: 0.024768537, z: -0.0037523939, w: 0.9884077}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1467,7 +1467,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1881306538}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 67688fbfc863ecf488134072a4c7edb1, type: 3}
   m_Name: 
@@ -1480,7 +1480,7 @@ MonoBehaviour:
   cullGrassShader: {fileID: 7200000, guid: 7ad81d82b28b8f048a161febb8dc41e5, type: 3}
   density: 2
   fieldSize: 1
-  scale: 33
+  scale: 1
   cullDistance: 38
 --- !u!114 &1881306543
 MonoBehaviour:
@@ -1489,7 +1489,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1881306538}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 979fb1901f8a76d4796fbd0dde089503, type: 3}
   m_Name: 
