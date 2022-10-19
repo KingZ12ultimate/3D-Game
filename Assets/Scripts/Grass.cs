@@ -124,6 +124,7 @@ public class Grass : MonoBehaviour
         initializeGrassShader.SetFloat(terrainSizeID, terrain.terrainData.size.x);
         initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
         positionsBuffer.GetData(positions);
+        UpdatePositions(positions);
     }
 
     private void CullGrass()
@@ -215,14 +216,13 @@ public class Grass : MonoBehaviour
     {
         foreach (var batch in batches)
         {
-            List<Matrix4x4> matrix4X4s = batch.Select(a => a.matrix).ToList();
-            List<Matrix4x4> filter = new List<Matrix4x4>();
-            foreach (Matrix4x4 matrix in matrix4X4s)
-            {
-                if (!Filter(matrix)) filter.Add(matrix);
-            }
-            Graphics.DrawMeshInstanced(grassMesh, 0, grassMaterial, filter);
-            GraphicsBuffer c = new GraphicsBuffer(GraphicsBuffer.Target.Structured, 10, 10);
+            //List<Matrix4x4> matrix4X4s = batch.Select(a => a.matrix).ToList();
+            //List<Matrix4x4> filter = new List<Matrix4x4>();
+            //foreach (Matrix4x4 matrix in matrix4X4s)
+            //{
+            //    if (!Filter(matrix)) filter.Add(matrix);
+            //}
+            Graphics.DrawMeshInstanced(grassMesh, 0, grassMaterial, batch.Select(a => a.matrix).ToList());
         }
     }
 
@@ -246,7 +246,7 @@ public class Grass : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        CullGrass();
+        // CullGrass();
         RenderBatches();
     }
 }
