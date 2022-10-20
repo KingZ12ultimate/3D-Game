@@ -192,7 +192,7 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 22059692}
-  m_LocalRotation: {x: 0.16769604, y: 0.024696168, z: -0.0042022974, w: 0.9855204}
+  m_LocalRotation: {x: 0.16769603, y: 0.024696197, z: -0.004202302, w: 0.9855204}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1477,7 +1477,6 @@ MonoBehaviour:
   terrainHeightMap: {fileID: 2800000, guid: ea51730a59464ea4c95d76f8d946b24b, type: 3}
   initializeGrassShader: {fileID: 7200000, guid: 076021d67fc37ca49a084496a67d7c78, type: 3}
   cullGrassShader: {fileID: 7200000, guid: 7ad81d82b28b8f048a161febb8dc41e5, type: 3}
-  density: 2
-  fieldSize: 1
-  scale: 1
+  density: 4
+  fieldSize: 300
   cullDistance: 38

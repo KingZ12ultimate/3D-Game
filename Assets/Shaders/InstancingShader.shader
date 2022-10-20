@@ -36,7 +36,8 @@ Shader "Custom/Instancing Shader"
                 v2f o;
                 uint cmdID = GetCommandID(0);
                 uint instanceID = GetIndirectInstanceID(svInstanceID);
-                o.vertex = UnityObjectToClipPos(v.vertex + PositionsBuffer[instanceID]);
+                float4 pos = v.vertex;
+                o.vertex = UnityObjectToClipPos(pos + PositionsBuffer[instanceID]);
                 o.color = _MainColor;
                 return o;
             }
