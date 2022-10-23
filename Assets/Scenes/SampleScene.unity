@@ -1472,7 +1472,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67688fbfc863ecf488134072a4c7edb1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  grassMesh: {fileID: -462981019419857548, guid: 7d4658f914d641d4bae6b3f5bff07d2e, type: 3}
+  grassMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
   grassMaterial: {fileID: 2100000, guid: f3c51e45ab7100646a178c4ae16f5ea0, type: 2}
   terrain: {fileID: 0}
   terrainHeightMap: {fileID: 2800000, guid: ea51730a59464ea4c95d76f8d946b24b, type: 3}
@@ -1493,7 +1493,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a6926a8e7fbdb54690f507e3bef102a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mesh: {fileID: -462981019419857548, guid: 7d4658f914d641d4bae6b3f5bff07d2e, type: 3}
+  mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
   material: {fileID: 2100000, guid: f3c51e45ab7100646a178c4ae16f5ea0, type: 2}
   initializeGrassShader: {fileID: 7200000, guid: 076021d67fc37ca49a084496a67d7c78, type: 3}
   terrainHeightMap: {fileID: 2800000, guid: ea51730a59464ea4c95d76f8d946b24b, type: 3}
