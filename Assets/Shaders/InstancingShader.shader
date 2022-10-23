@@ -6,11 +6,14 @@ Shader "Custom/Instancing Shader"
     }
     SubShader
     {
+        Cull Off
+        
         Pass
         {
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_instancing
 
             #include "UnityCG.cginc"
             #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
@@ -29,6 +32,7 @@ Shader "Custom/Instancing Shader"
 
             float4 _MainColor;
             uniform StructuredBuffer<float4> PositionsBuffer;
+            uniform float4x4 Rotation;
 
             v2f vert (VertexData v, uint svInstanceID : SV_InstanceID)
             {
@@ -36,8 +40,7 @@ Shader "Custom/Instancing Shader"
                 v2f o;
                 uint cmdID = GetCommandID(0);
                 uint instanceID = GetIndirectInstanceID(svInstanceID);
-                float4 pos = v.vertex;
-                o.vertex = UnityObjectToClipPos(pos + PositionsBuffer[instanceID]);
+                o.vertex = UnityObjectToClipPos(v.vertex + PositionsBuffer[instanceID]);
                 o.color = _MainColor;
                 return o;
             }

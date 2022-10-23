@@ -10,20 +10,45 @@ public class Instancer : MonoBehaviour
     GraphicsBuffer commandBuffer;
     GraphicsBuffer.IndirectDrawIndexedArgs[] commandData;
 
+    public ComputeShader initializeGrassShader;
+    public Texture2D terrainHeightMap;
+
     [Range(0, 10000)]
     public int numInstances = 10;
     [Range(0, 100)]
     public float radius = 50;
+    [Range (1, 5)]
+    public int density = 1;
+    [Range(0, 1024)]
+    public int fieldSize = 300;
+
+    #region Initialize Grass Shader IDs
+    static readonly int positionsBufferID = Shader.PropertyToID("PositionsBuffer");
+    static readonly int fieldSizeID = Shader.PropertyToID("FieldSize");
+    static readonly int densityID = Shader.PropertyToID("Density");
+    static readonly int yScaleID = Shader.PropertyToID("YScale");
+    static readonly int terrainSizeID = Shader.PropertyToID("TerrainSize");
+    static readonly int heightMapID = Shader.PropertyToID("_Heightmap");
+    #endregion
 
     private void Awake()
     {
         commandData = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+        fieldSize *= density;
     }
 
     private void OnEnable()
     {
-        positionsBuffer = new ComputeBuffer(numInstances, 4 * sizeof(float));
+        positionsBuffer = new ComputeBuffer(fieldSize * fieldSize, 4 * sizeof(float));
         commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
+
+        initializeGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
+        initializeGrassShader.SetTexture(0, heightMapID, terrainHeightMap);
+        initializeGrassShader.SetInt(fieldSizeID, fieldSize);
+        initializeGrassShader.SetInt(densityID, density);
+        initializeGrassShader.SetFloat(yScaleID, 600);
+        initializeGrassShader.SetFloat(terrainSizeID, 1024);
+        initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
     }
 
     private void OnDisable()
@@ -51,13 +76,12 @@ public class Instancer : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        UpdatePositions();
         RenderParams renderParams = new RenderParams(material);
-        renderParams.worldBounds = new Bounds(Vector3.zero, 1000 * Vector3.one);
+        renderParams.worldBounds = new Bounds(Vector3.zero, Vector3.one * 1024);
         renderParams.matProps = new MaterialPropertyBlock();
         renderParams.matProps.SetBuffer("PositionsBuffer", positionsBuffer);
-        renderParams.matProps.SetMatrix("_ObjectToWorld", Matrix4x4.Translate(new Vector3(-4.5f, 0, 0)));
-        commandData[0].instanceCount = (uint)numInstances;
+        renderParams.matProps.SetMatrix("Rotation", Matrix4x4.Rotate(Quaternion.Euler(0f, 90f, 90f)));
+        commandData[0].instanceCount = (uint)positionsBuffer.count;
         commandData[0].indexCountPerInstance = mesh.GetIndexCount(0);
         commandBuffer.SetData(commandData);
         Graphics.RenderMeshIndirect(renderParams, mesh, commandBuffer);
