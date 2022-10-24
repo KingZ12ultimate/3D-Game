@@ -6,21 +6,26 @@ public class Instancer : MonoBehaviour
 {
     public Mesh mesh;
     public Material material;
-    ComputeBuffer positionsBuffer;
+    ComputeBuffer positionsBuffer, voteBuffer, scanBuffer, culledPositionsBuffer,
+        groupSumsBuffer, scannedGroupSumsBuffer;
     GraphicsBuffer commandBuffer;
     GraphicsBuffer.IndirectDrawIndexedArgs[] commandData;
+    Camera cam;
 
     public ComputeShader initializeGrassShader;
+    public ComputeShader cullGrassShader;
     public Texture2D terrainHeightMap;
 
-    [Range(0, 10000)]
-    public int numInstances = 10;
-    [Range(0, 100)]
-    public float radius = 50;
     [Range (1, 5)]
     public int density = 1;
     [Range(0, 1024)]
     public int fieldSize = 300;
+    [Range(0f, 1000f)]
+    public float cullDistance = 30;
+
+    private int numInstances;
+    private int numThreadGroups;
+    private int numGroupScanThreadGroups;
 
     #region Initialize Grass Shader IDs
     static readonly int positionsBufferID = Shader.PropertyToID("PositionsBuffer");
@@ -31,16 +36,53 @@ public class Instancer : MonoBehaviour
     static readonly int heightMapID = Shader.PropertyToID("_Heightmap");
     #endregion
 
+    #region Cull Grass Shader IDs
+    static readonly int voteBufferID = Shader.PropertyToID("VoteBuffer");
+    static readonly int scanBufferID = Shader.PropertyToID("ScanBuffer");
+    static readonly int groupSumsBufferID = Shader.PropertyToID("GroupSumsBuffer");
+    static readonly int groupSumsInBufferID = Shader.PropertyToID("GroupSumsInBuffer");
+    static readonly int groupSumsOutBufferID = Shader.PropertyToID("GroupSumsOutBuffer");
+    static readonly int culledGrassBufferID = Shader.PropertyToID("CulledGrassBuffer");
+    static readonly int matrixVPID = Shader.PropertyToID("MATRIX_VP");
+    static readonly int cameraPositionID = Shader.PropertyToID("CameraPosition");
+    static readonly int distanceID = Shader.PropertyToID("Distacne");
+    static readonly int numGroupsID = Shader.PropertyToID("NumGroups");
+    #endregion
+
     private void Awake()
     {
         commandData = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
         fieldSize *= density;
+        cam = Camera.main;
     }
 
     private void OnEnable()
     {
         positionsBuffer = new ComputeBuffer(fieldSize * fieldSize, 4 * sizeof(float));
         commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
+
+        numInstances = positionsBuffer.count;
+        voteBuffer = new ComputeBuffer(numInstances, sizeof(int));
+        scanBuffer = new ComputeBuffer(numInstances, sizeof(int));
+        culledPositionsBuffer = new ComputeBuffer(numInstances, 4 * sizeof(float));
+
+        numThreadGroups = Mathf.CeilToInt(numInstances / 128f);
+        if (numThreadGroups > 128)
+        {
+            int powerOfTwo = 128;
+            while (powerOfTwo < numThreadGroups)
+                powerOfTwo *= 2;
+            numThreadGroups = powerOfTwo;
+        }
+        else
+        {
+            while (128 % numThreadGroups != 0)
+                numThreadGroups++;
+        }
+
+        numGroupScanThreadGroups = Mathf.CeilToInt(numInstances / 1024f);
+        groupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
+        scannedGroupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
 
         initializeGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
         initializeGrassShader.SetTexture(0, heightMapID, terrainHeightMap);
@@ -54,28 +96,63 @@ public class Instancer : MonoBehaviour
     private void OnDisable()
     {
         positionsBuffer?.Release();
-        positionsBuffer = null;
-
+        voteBuffer?.Release();
+        scanBuffer?.Release();
+        culledPositionsBuffer?.Release();
+        groupSumsBuffer?.Release();
+        scannedGroupSumsBuffer?.Release();
         commandBuffer?.Release();
+        positionsBuffer = null;
+        voteBuffer = null;
+        scanBuffer = null;
+        culledPositionsBuffer = null;
+        groupSumsBuffer = null;
+        scannedGroupSumsBuffer = null;
         commandBuffer = null;
     }
 
-    private void UpdatePositions()
+    private void CullGrass()
     {
-        Vector4[] positions = new Vector4[numInstances];
-        for (int i = 0; i < numInstances; i++)
-        {
-            Vector3 pos = Random.insideUnitSphere * radius;
-            positions[i] = new Vector4(pos.x, pos.y, pos.z, 1f);
-        }
-        positionsBuffer.Release();
-        positionsBuffer = new ComputeBuffer(numInstances, 4 * sizeof(float));
-        positionsBuffer.SetData(positions);
+        Matrix4x4 V = cam.transform.worldToLocalMatrix;
+        Matrix4x4 P = cam.projectionMatrix;
+        Matrix4x4 VP = P * V;
+
+        // Set global variables
+        cullGrassShader.SetMatrix(matrixVPID, VP);
+        cullGrassShader.SetVector(cameraPositionID, cam.transform.position);
+        cullGrassShader.SetFloat(distanceID, cullDistance);
+        cullGrassShader.SetInt(numGroupsID, numThreadGroups);
+
+        // Vote on positions
+        cullGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
+        cullGrassShader.SetBuffer(0, voteBufferID, voteBuffer);
+        cullGrassShader.Dispatch(0, numThreadGroups, 1, 1);
+
+        // Scan votes
+        cullGrassShader.SetBuffer(1, voteBufferID, voteBuffer);
+        cullGrassShader.SetBuffer(1, scanBufferID, scanBuffer);
+        cullGrassShader.SetBuffer(1, groupSumsBufferID, groupSumsBuffer);
+        cullGrassShader.Dispatch(1, numThreadGroups, 1, 1);
+
+        // Scan group sums
+        cullGrassShader.SetBuffer(2, groupSumsInBufferID, groupSumsBuffer);
+        cullGrassShader.SetBuffer(2, groupSumsOutBufferID, scannedGroupSumsBuffer);
+        cullGrassShader.Dispatch(2, numGroupScanThreadGroups, 1, 1);
+
+        // Compact
+        cullGrassShader.SetBuffer(3, positionsBufferID, positionsBuffer);
+        cullGrassShader.SetBuffer(3, voteBufferID, voteBuffer);
+        cullGrassShader.SetBuffer(3, scanBufferID, scanBuffer);
+        cullGrassShader.SetBuffer(3, groupSumsBufferID, scannedGroupSumsBuffer);
+        cullGrassShader.SetBuffer(3, culledGrassBufferID, culledPositionsBuffer);
+        cullGrassShader.Dispatch(3, numThreadGroups, 1, 1);
     }
 
     // Update is called once per frame
     void Update()
     {
+        CullGrass();
+
         RenderParams renderParams = new RenderParams(material);
         renderParams.worldBounds = new Bounds(Vector3.zero, Vector3.one * 1024);
         renderParams.matProps = new MaterialPropertyBlock();

@@ -4,8 +4,6 @@
 #pragma kernel ScanGroupSums
 #pragma kernel Compact
 
-#pragma enable_d3d11_debug_symbols
-
 #define NUM_GROUP_THREADS_X 64
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
