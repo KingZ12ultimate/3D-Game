@@ -151,7 +151,7 @@ public class Instancer : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        CullGrass();
+        // CullGrass();
 
         RenderParams renderParams = new RenderParams(material);
         renderParams.worldBounds = new Bounds(Vector3.zero, Vector3.one * 1024);

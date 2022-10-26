@@ -7,13 +7,13 @@
 #define NUM_GROUP_THREADS_X 64
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
-StructuredBuffer<float3> PositionsBuffer;
+StructuredBuffer<float4> PositionsBuffer;
 RWStructuredBuffer<int> VoteBuffer;
 RWStructuredBuffer<int> ScanBuffer;
 RWStructuredBuffer<int> GroupSumsBuffer;
 RWStructuredBuffer<int> GroupSumsInBuffer;
 RWStructuredBuffer<int> GroupSumsOutBuffer;
-RWStructuredBuffer<float3> CulledGrassBuffer;
+RWStructuredBuffer<float4> CulledGrassBuffer;
 
 groupshared uint temp[2 * NUM_GROUP_THREADS_X];
 groupshared uint groupSumsTemp[2 * 1024];

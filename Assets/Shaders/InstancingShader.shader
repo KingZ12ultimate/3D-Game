@@ -40,8 +40,10 @@ Shader "Custom/Instancing Shader"
                 v2f o;
                 uint cmdID = GetCommandID(0);
                 uint instanceID = GetIndirectInstanceID(svInstanceID);
-                o.vertex = UnityObjectToClipPos(v.vertex + PositionsBuffer[instanceID]);
-                o.color = _MainColor;
+                float4 rotated = mul(Rotation, v.vertex);
+                o.vertex = UnityObjectToClipPos(rotated + PositionsBuffer[instanceID]);
+                o.color = normalize(rotated + PositionsBuffer[instanceID]) * 0.5 + 0.5;
+                o.color.w = 1.0f;
                 return o;
             }
 
