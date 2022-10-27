@@ -15,6 +15,8 @@ RWStructuredBuffer<int> GroupSumsInBuffer;
 RWStructuredBuffer<int> GroupSumsOutBuffer;
 RWStructuredBuffer<float4> CulledGrassBuffer;
 
+RWStructuredBuffer<int> GrassCounter;
+
 groupshared uint temp[2 * NUM_GROUP_THREADS_X];
 groupshared uint groupSumsTemp[2 * 1024];
 float4x4 MATRIX_VP;
@@ -38,9 +40,9 @@ void Vote(uint3 dispatchThreadID : SV_DispatchThreadID)
     clipSpace.x = clipSpace.x / 2.0f + 0.5f;
     clipSpace.y = clipSpace.y / 2.0f + 0.5f;
     clipSpace.z = -viewSpace.w;
-    bool inView = InRange(clipSpace.x, 0.0f, 1.0f) && InRange(clipSpace.y, 0.0f, 1.0f) && clipSpace.z > 0;
-    // bool inDistance = distance(CameraPosition, pos.xyz) < Distance;
-    VoteBuffer[globalID] = inView;
+    bool inView = clipSpace.x < -0.2f || clipSpace.x > 1.2f || clipSpace.z <= -0.1f ? 0 : 1;
+    bool inDistance = distance(CameraPosition, pos.xyz) < 100;
+    VoteBuffer[globalID] = inView * inDistance;
 }
 
 [numthreads(NUM_GROUP_THREADS_X,1,1)]
@@ -148,5 +150,8 @@ void Compact(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupID : SV_Gr
     int globalID = int(dispatchThreadID.x);
     uint groupSum = groupID.x > 0 ? GroupSumsBuffer[groupID.x] : 0;
     if (VoteBuffer[globalID] == 1)
+    {
+        InterlockedAdd(GrassCounter[0], 1);
         CulledGrassBuffer[ScanBuffer[globalID] + groupSum] = PositionsBuffer[globalID];
+    }
 }

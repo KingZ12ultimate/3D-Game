@@ -11,7 +11,7 @@ public class Grass : MonoBehaviour
     public Texture2D terrainHeightMap;
     public ComputeShader initializeGrassShader, cullGrassShader;
     private ComputeBuffer positionsBuffer, voteBuffer, scanBuffer, culledPositionsBuffer,
-        groupSumsBuffer, scannedGroupSumsBuffer;
+        groupSumsBuffer, scannedGroupSumsBuffer, grassCountbuffer;
     private Camera cam;
     private Bounds fieldBounds;
 
@@ -44,6 +44,7 @@ public class Grass : MonoBehaviour
     static readonly int groupSumsInBufferID = Shader.PropertyToID("GroupSumsInBuffer");
     static readonly int groupSumsOutBufferID = Shader.PropertyToID("GroupSumsOutBuffer");
     static readonly int culledGrassBufferID = Shader.PropertyToID("CulledGrassBuffer");
+    static readonly int grassCountBufferID = Shader.PropertyToID("GrassCounter");
     static readonly int matrixVPID = Shader.PropertyToID("MATRIX_VP");
     static readonly int cameraPositionID = Shader.PropertyToID("CameraPosition");
     static readonly int distanceID = Shader.PropertyToID("Distacne");
@@ -74,7 +75,8 @@ public class Grass : MonoBehaviour
         numInstances = positionsBuffer.count;
         voteBuffer = new ComputeBuffer(numInstances, sizeof(int));
         scanBuffer = new ComputeBuffer(numInstances, sizeof(int));
-        culledPositionsBuffer = new ComputeBuffer(numInstances, 4 * sizeof(float), ComputeBufferType.Append);
+        culledPositionsBuffer = new ComputeBuffer(numInstances, 4 * sizeof(float), ComputeBufferType.Counter);
+        grassCountbuffer = new ComputeBuffer(1, sizeof(int));
 
         numThreadGroups = Mathf.CeilToInt(numInstances / 128f);
         if (numThreadGroups > 128)
@@ -115,8 +117,6 @@ public class Grass : MonoBehaviour
         Matrix4x4 P = cam.projectionMatrix;
         Matrix4x4 VP = P * V;
 
-        Debug.Log(VP);
-
         // Set global variables
         cullGrassShader.SetMatrix(matrixVPID, VP);
         cullGrassShader.SetVector(cameraPositionID, cam.transform.position);
@@ -145,6 +145,7 @@ public class Grass : MonoBehaviour
         cullGrassShader.SetBuffer(3, scanBufferID, scanBuffer);
         cullGrassShader.SetBuffer(3, groupSumsBufferID, scannedGroupSumsBuffer);
         cullGrassShader.SetBuffer(3, culledGrassBufferID, culledPositionsBuffer);
+        cullGrassShader.SetBuffer(3, grassCountBufferID, grassCountbuffer);
         cullGrassShader.Dispatch(3, numThreadGroups, 1, 1);
     }
 
@@ -156,6 +157,7 @@ public class Grass : MonoBehaviour
         culledPositionsBuffer?.Release();
         groupSumsBuffer?.Release();
         scannedGroupSumsBuffer?.Release();
+        grassCountbuffer?.Release();
         commandBuffer?.Release();
         positionsBuffer = null;
         voteBuffer = null;
@@ -163,22 +165,17 @@ public class Grass : MonoBehaviour
         culledPositionsBuffer = null;
         groupSumsBuffer = null;
         scannedGroupSumsBuffer = null;
+        grassCountbuffer = null;
         commandBuffer = null;
 
         fieldSize /= density;
     }
 
-    private void UpdatePositions()
+    private void SetGrassCount()
     {
-        int[] vote = new int[voteBuffer.count];
-        voteBuffer.GetData(vote);
-        Vector4[] positions = new Vector4[positionsBuffer.count];
-        positionsBuffer.GetData(positions);
-        List<Vector4> culledPositions = new List<Vector4>();
-        for (int i = 0; i < vote.Length; i++)
-            if (vote[i] == 1)
-                culledPositions.Add(positions[i]);
-        culledPositionsBuffer.SetData(culledPositions);
+        int[] count = new int[1];
+        grassCountbuffer.GetData(count);
+        commandData[0].instanceCount = (uint)count[0];
     }
 
     // Update is called once per frame
@@ -192,7 +189,7 @@ public class Grass : MonoBehaviour
         renderParams.matProps = new MaterialPropertyBlock();
         renderParams.matProps.SetBuffer("PositionsBuffer", culledPositionsBuffer);
         renderParams.matProps.SetMatrix("Rotation", Matrix4x4.Rotate(Quaternion.Euler(0f, 90f, 90f)));
-        commandData[0].instanceCount = (uint)culledPositionsBuffer.count;
+        SetGrassCount();
         commandData[0].indexCountPerInstance = grassMesh.GetIndexCount(0);
         commandBuffer.SetData(commandData);
         Graphics.RenderMeshIndirect(renderParams, grassMesh, commandBuffer);
