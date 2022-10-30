@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class Grass : MonoBehaviour
@@ -24,9 +23,7 @@ public class Grass : MonoBehaviour
     [Range(0f, 1000f)]
     public float cullDistance = 30;
 
-    private int numInstances;
-    private int numThreadGroups;
-    private int numGroupScanThreadGroups;
+    private int numInstances, numThreadGroups, numVoteThreadGroups, numGroupScanThreadGroups;
 
     #region Initialize Grass Shader IDs
     static readonly int positionsBufferID = Shader.PropertyToID("PositionsBuffer");
@@ -91,7 +88,7 @@ public class Grass : MonoBehaviour
             while (128 % numThreadGroups != 0)
                 numThreadGroups++;
         }
-
+        numVoteThreadGroups = Mathf.CeilToInt(numInstances / 128f);
         numGroupScanThreadGroups = Mathf.CeilToInt(numInstances / 1024f);
         groupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
         scannedGroupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
@@ -126,7 +123,7 @@ public class Grass : MonoBehaviour
         // Vote on positions
         cullGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
         cullGrassShader.SetBuffer(0, voteBufferID, voteBuffer);
-        cullGrassShader.Dispatch(0, numThreadGroups, 1, 1);
+        cullGrassShader.Dispatch(0, numVoteThreadGroups, 1, 1);
 
         //Scan votes
         cullGrassShader.SetBuffer(1, voteBufferID, voteBuffer);
@@ -182,7 +179,6 @@ public class Grass : MonoBehaviour
     void Update()
     {
         CullGrass();
-        //UpdatePositions();
 
         RenderParams renderParams = new RenderParams(grassMaterial);
         renderParams.worldBounds = fieldBounds;
@@ -193,5 +189,7 @@ public class Grass : MonoBehaviour
         commandData[0].indexCountPerInstance = grassMesh.GetIndexCount(0);
         commandBuffer.SetData(commandData);
         Graphics.RenderMeshIndirect(renderParams, grassMesh, commandBuffer);
+        cullGrassShader.SetBuffer(4, grassCountBufferID, grassCountbuffer);
+        cullGrassShader.Dispatch(4, 1, 1, 1);
     }
 }
