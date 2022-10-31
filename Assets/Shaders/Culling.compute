@@ -7,7 +7,7 @@
 #define NUM_GROUP_THREADS_X 64
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
-StructuredBuffer<int> IntBuffer;
+RWStructuredBuffer<int> IntBuffer;
 RWStructuredBuffer<uint> VoteBuffer;
 RWStructuredBuffer<uint> ScanBuffer;
 RWStructuredBuffer<uint> GroupSumsBuffer;
@@ -28,7 +28,7 @@ bool InRange(float val, float min, float max)
 void Vote(uint3 dispatchThreadID : SV_DispatchThreadID)
 {
     int globalID = int(dispatchThreadID.x);
-    VoteBuffer[globalID] = IntBuffer[globalID] < 10 ? 1 : 0;
+    VoteBuffer[globalID] = IntBuffer[globalID] < 0 ? 0 : 1;
 }
 
 [numthreads(NUM_GROUP_THREADS_X,1,1)]
