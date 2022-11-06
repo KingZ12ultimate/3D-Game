@@ -1,0 +1,146 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Vote
+#pragma kernel Scan
+#pragma kernel ScanGroups
+#pragma kernel Compact
+
+#pragma enable_d3d11_debug_symbols
+
+#define NUM_GROUP_THREADS_X 64
+
+StructuredBuffer<int> Input;
+RWStructuredBuffer<uint> VoteBuffer;
+RWStructuredBuffer<uint> ScanBuffer;
+RWStructuredBuffer<uint> GroupSumsBuffer;
+RWStructuredBuffer<uint> GroupSumsBufferIn;
+RWStructuredBuffer<uint> GroupSumsBufferOut;
+RWStructuredBuffer<int> Output;
+
+int NumGroups;
+groupshared uint temp[2 * NUM_GROUP_THREADS_X];
+groupshared uint grouptemp[2 * 1024];
+
+[numthreads(128, 1, 1)]
+void Vote (uint3 id : SV_DispatchthreadID)
+{
+    // TODO: insert actual code here!
+    VoteBuffer[id.x] = Input[id.x] < 0 ? 0 : 1;
+}
+
+[numthreads(2 * NUM_GROUP_THREADS_X, 1, 1)]
+void Scan(uint3 threadID : SV_DispatchthreadID, uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID)
+{
+    int globalID = (int) threadID.x;
+    int localID = (int) groupThreadID.x;
+    
+    temp[2 * localID] = VoteBuffer[2 * globalID];
+    temp[2 * localID + 1] = VoteBuffer[2 * globalID + 1];
+    
+    int d;
+    int offset = 1;
+    int numElements = 2 * NUM_GROUP_THREADS_X;
+    
+    // Up-Sweep Phase
+    for (d = numElements >> 1; d > 0; d >>= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        if (localID < d)
+        {
+            int ai = offset * (2 * localID + 1) - 1;
+            int bi = offset * (2 * localID + 2) - 1;
+            temp[bi] += temp[ai];
+        }
+        
+        offset *= 2;
+    }
+
+    if (localID == 0)
+    {
+        GroupSumsBuffer[groupID.x] = temp[numElements - 1];
+        temp[numElements - 1] = 0;
+    }
+    
+    // Down-Sweep Phase
+    for (d = 1; d < numElements; d <<= 1)
+    {
+        offset >>= 1;
+        
+        GroupMemoryBarrierWithGroupSync();
+        if (localID < d)
+        {
+            int ai = offset * (2 * localID + 1) - 1;
+            int bi = offset * (2 * localID + 2) - 1;
+            int t = temp[ai];
+            temp[ai] = temp[bi];
+            temp[bi] += t;
+        }
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+
+    ScanBuffer[2 * globalID] = temp[2 * localID];
+    ScanBuffer[2 * globalID + 1] = temp[2 * localID + 1];
+}
+
+[numthreads(1024, 1, 1)]
+void ScanGroups(uint3 threadID : SV_DispatchthreadID, uint3 groupThreadID : SV_GroupthreadID)
+{
+    int globalID = (int) threadID.x;
+    int localID = (int) groupThreadID.x;
+    
+    grouptemp[2 * localID] = GroupSumsBufferIn[2 * globalID];
+    grouptemp[2 * localID + 1] = GroupSumsBufferIn[2 * globalID + 1];
+
+    int d;
+    int offset = 1;
+    
+    // Up-Sweep Phase
+    for (d = NumGroups >> 1; d > 0; d >>= 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        if (localID < d)
+        {
+            int ai = offset * (2 * localID + 1) - 1;
+            int bi = offset * (2 * localID + 2) - 1;
+            grouptemp[bi] += grouptemp[ai];
+        }
+        
+        offset *= 2;
+    }
+
+    if (globalID == 0)
+        grouptemp[NumGroups - 1] = 0;
+    
+    // Down-Sweep Phase
+    for (d = 1; d < NumGroups; d <<= 1)
+    {
+        offset >>= 1;
+        
+        GroupMemoryBarrierWithGroupSync();
+        if (globalID < d)
+        {
+            int ai = offset * (2 * localID + 1) - 1;
+            int bi = offset * (2 * localID + 2) - 1;
+            int t = grouptemp[ai];
+            grouptemp[ai] = grouptemp[bi];
+            grouptemp[bi] += t;
+        }
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+
+    GroupSumsBufferOut[2 * globalID] = grouptemp[2 * globalID];
+    GroupSumsBufferOut[2 * globalID + 1] = grouptemp[2 * globalID + 1];
+}
+
+[numthreads(128, 1, 1)]
+void Compact(uint3 threadID : SV_DispatchthreadID, uint3 groupID : SV_GroupID)
+{
+    int globalID = (int) threadID.x;
+    uint groupSum = groupID.x > 0 ? GroupSumsBuffer[groupID.x] : 0;
+    
+    if (VoteBuffer[globalID] == 1)
+    {
+        Output[ScanBuffer[globalID] + groupSum] = Input[globalID];
+    }
+}

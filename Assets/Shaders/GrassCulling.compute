@@ -128,7 +128,7 @@ void ScanGroupSums(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThre
     {
         offset >>= 1;
         GroupMemoryBarrierWithGroupSync();
-        if (localID < d)
+        if (globalID < d)
         {
             int ai = offset * (2 * localID + 1) - 1;
             int bi = offset * (2 * localID + 2) - 1;
@@ -139,8 +139,8 @@ void ScanGroupSums(uint3 dispatchThreadID : SV_DispatchThreadID, uint3 groupThre
     }
     GroupMemoryBarrierWithGroupSync();
     
-    GroupSumsOutBuffer[2 * globalID] = groupSumsTemp[2 * localID];
-    GroupSumsOutBuffer[2 * globalID + 1] = groupSumsTemp[2 * localID + 1];
+    GroupSumsOutBuffer[2 * globalID] = groupSumsTemp[2 * globalID];
+    GroupSumsOutBuffer[2 * globalID + 1] = groupSumsTemp[2 * globalID + 1];
 }
 
 

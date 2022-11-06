@@ -330,7 +330,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a6926a8e7fbdb54690f507e3bef102a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cullGrassShader: {fileID: 7200000, guid: d345ed4add3bf7b4f8bd5ff0156bf07c, type: 3}
+  voteShader: {fileID: 7200000, guid: 807a466f34122ac42a7a3d9ee23e3570, type: 3}
   numInstances: 8
 --- !u!4 &1762870145
 Transform:
