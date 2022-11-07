@@ -4,10 +4,10 @@ using UnityEngine;
 
 public class Instancer : MonoBehaviour
 {
-    ComputeBuffer inputBuffer, voteBuffer, scanBuffer, groupSumsBuffer, scannedGroupSumsBuffer, outputBuffer;
+    ComputeBuffer inputBuffer, voteBuffer, scanBuffer, groupSumsBuffer, scannedGroupSumsBuffer, outputBuffer, counter;
     public ComputeShader cullShader;
 
-    [SerializeField, Range(1, 1000)]
+    [SerializeField]
     private int numInstances = 8;
 
     private int[] values;
@@ -21,6 +21,7 @@ public class Instancer : MonoBehaviour
     static readonly int groupSumsBufferID = Shader.PropertyToID("GroupSumsBuffer");
     static readonly int groupSumsBufferInID = Shader.PropertyToID("GroupSumsBufferIn");
     static readonly int groupSumsBufferOutID = Shader.PropertyToID("GroupSumsBufferOut");
+    static readonly int counterID = Shader.PropertyToID("Counter");
     static readonly int outputBufferID = Shader.PropertyToID("Output");
     static readonly int numGroupsID = Shader.PropertyToID("NumGroups");
     #endregion
@@ -35,6 +36,11 @@ public class Instancer : MonoBehaviour
         inputBuffer = new ComputeBuffer(numInstances, sizeof(int));
         voteBuffer = new ComputeBuffer(numInstances, sizeof(uint));
         scanBuffer = new ComputeBuffer(numInstances, sizeof(uint));
+        outputBuffer = new ComputeBuffer(numInstances, sizeof(uint));
+        counter = new ComputeBuffer(1, sizeof(uint));
+
+        int[] zero = { 0 };
+        counter.SetData(zero);
 
         numThreadGroups = Mathf.CeilToInt(numInstances / 128f);
         if (numThreadGroups > 128)
@@ -50,33 +56,77 @@ public class Instancer : MonoBehaviour
                 numThreadGroups++;
         }
 
-        groupSumsBuffer = new ComputeBuffer(numGroupScanThreadGroups, sizeof(uint));
-        scannedGroupSumsBuffer = new ComputeBuffer(numInstances, sizeof(uint));
-        voteBuffer = new ComputeBuffer(numInstances, sizeof(uint));
-
+        numVoteThreadGroups = Mathf.CeilToInt(numInstances / 128f);
+        numGroupScanThreadGroups = Mathf.CeilToInt(numInstances / 1024f);
+        groupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(uint));
+        scannedGroupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(uint));
     }
 
     private void OnDisable()
     {
         inputBuffer?.Release();
         voteBuffer?.Release();
+        scanBuffer?.Release();
+        outputBuffer?.Release();
+        counter?.Release();
+        scannedGroupSumsBuffer?.Release();
+        groupSumsBuffer?.Release();
         inputBuffer = null;
         voteBuffer = null;
+        scanBuffer = null;
+        outputBuffer = null;
+        counter = null;
+        scannedGroupSumsBuffer = null;
+        groupSumsBuffer = null;
+    }
+
+    private void InintializeBuffers()
+    {
+        for (int i = 0; i < numInstances; i++)
+            values[i] = 0;
+        outputBuffer.SetData(values);
+        for (int i = 0; i < numInstances; i++)
+            values[i] = Random.Range(-100, 101);
+        inputBuffer.SetData(values);
     }
 
     private void Start()
     {
-        
+        InintializeBuffers();
+
+        #region Culling
+        cullShader.SetBuffer(0, inputBufferID, inputBuffer);
+        cullShader.SetBuffer(0, voteBufferID, voteBuffer);
+        cullShader.Dispatch(0, numVoteThreadGroups, 1, 1);
+
+        cullShader.SetBuffer(1, voteBufferID, voteBuffer);
+        cullShader.SetBuffer(1, scanBufferID, scanBuffer);
+        cullShader.SetBuffer(1, groupSumsBufferID, groupSumsBuffer);
+        cullShader.Dispatch(1, numThreadGroups, 1, 1);
+
+        cullShader.SetInt(numGroupsID, numThreadGroups);
+        cullShader.SetBuffer(2, groupSumsBufferInID, groupSumsBuffer);
+        cullShader.SetBuffer(2, groupSumsBufferOutID, scannedGroupSumsBuffer);
+        cullShader.Dispatch(2, numGroupScanThreadGroups, 1, 1);
+
+        cullShader.SetBuffer(3, inputBufferID, inputBuffer);
+        cullShader.SetBuffer(3, voteBufferID, voteBuffer);
+        cullShader.SetBuffer(3, scanBufferID, scanBuffer);
+        cullShader.SetBuffer(3, groupSumsBufferID, scannedGroupSumsBuffer);
+        cullShader.SetBuffer(3, counterID, counter);
+        cullShader.SetBuffer(3, outputBufferID, outputBuffer);
+        cullShader.Dispatch(3, numThreadGroups, 1, 1);
+        #endregion
+
+        uint[] count = new uint[1];
+        counter.GetData(count);
+        int[] output = new int[numInstances];
+        outputBuffer.GetData(output);
     }
 
     // Update is called once per frame
     void Update()
     {
-        for (int i = 0; i < numInstances; i++)
-            values[i] = Random.Range(-10, 11);
-        inputBuffer.SetData(values);
-        cullShader.SetBuffer(0, inputBufferID, inputBuffer);
-        cullShader.SetBuffer(0, outputBufferID, voteBuffer);
-        cullShader.Dispatch(0, 1, 1, 1);
+
     }
 }

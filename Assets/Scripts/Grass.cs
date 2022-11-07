@@ -38,8 +38,8 @@ public class Grass : MonoBehaviour
     static readonly int voteBufferID = Shader.PropertyToID("VoteBuffer");
     static readonly int scanBufferID = Shader.PropertyToID("ScanBuffer");
     static readonly int groupSumsBufferID = Shader.PropertyToID("GroupSumsBuffer");
-    static readonly int groupSumsInBufferID = Shader.PropertyToID("GroupSumsInBuffer");
-    static readonly int groupSumsOutBufferID = Shader.PropertyToID("GroupSumsOutBuffer");
+    static readonly int groupSumsBufferInID = Shader.PropertyToID("GroupSumsBufferIn");
+    static readonly int groupSumsBufferOutID = Shader.PropertyToID("GroupSumsBufferOut");
     static readonly int culledGrassBufferID = Shader.PropertyToID("CulledGrassBuffer");
     static readonly int grassCountBufferID = Shader.PropertyToID("GrassCounter");
     static readonly int matrixVPID = Shader.PropertyToID("MATRIX_VP");
@@ -68,12 +68,13 @@ public class Grass : MonoBehaviour
         positionsBuffer = new ComputeBuffer(fieldSize * fieldSize, 4 * sizeof(float));
         commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
 
-        #region Wait a sec!
         numInstances = positionsBuffer.count;
         voteBuffer = new ComputeBuffer(numInstances, sizeof(int));
         scanBuffer = new ComputeBuffer(numInstances, sizeof(int));
-        culledPositionsBuffer = new ComputeBuffer(numInstances, 4 * sizeof(float), ComputeBufferType.Counter);
+        culledPositionsBuffer = new ComputeBuffer(numInstances, 4 * sizeof(float));
         grassCountbuffer = new ComputeBuffer(1, sizeof(int));
+
+        ResetGrassCount();
 
         numThreadGroups = Mathf.CeilToInt(numInstances / 128f);
         if (numThreadGroups > 128)
@@ -92,7 +93,6 @@ public class Grass : MonoBehaviour
         numGroupScanThreadGroups = Mathf.CeilToInt(numInstances / 1024f);
         groupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
         scannedGroupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
-        #endregion
 
         CalculatePositions();
     }
@@ -132,8 +132,8 @@ public class Grass : MonoBehaviour
         cullGrassShader.Dispatch(1, numThreadGroups, 1, 1);
 
         //Scan group sums
-        cullGrassShader.SetBuffer(2, groupSumsInBufferID, groupSumsBuffer);
-        cullGrassShader.SetBuffer(2, groupSumsOutBufferID, scannedGroupSumsBuffer);
+        cullGrassShader.SetBuffer(2, groupSumsBufferInID, groupSumsBuffer);
+        cullGrassShader.SetBuffer(2, groupSumsBufferOutID, scannedGroupSumsBuffer);
         cullGrassShader.Dispatch(2, numGroupScanThreadGroups, 1, 1);
 
         //Compact
@@ -168,12 +168,20 @@ public class Grass : MonoBehaviour
         fieldSize /= density;
     }
 
+    #region Grass Count Methods
     private void SetGrassCount()
     {
         int[] count = new int[1];
         grassCountbuffer.GetData(count);
         commandData[0].instanceCount = (uint)count[0];
     }
+
+    private void ResetGrassCount()
+    {
+        int[] zero = { 0 };
+        grassCountbuffer.SetData(zero);
+    }
+    #endregion
 
     // Update is called once per frame
     void Update()
@@ -189,7 +197,6 @@ public class Grass : MonoBehaviour
         commandData[0].indexCountPerInstance = grassMesh.GetIndexCount(0);
         commandBuffer.SetData(commandData);
         Graphics.RenderMeshIndirect(renderParams, grassMesh, commandBuffer);
-        cullGrassShader.SetBuffer(4, grassCountBufferID, grassCountbuffer);
-        cullGrassShader.Dispatch(4, 1, 1, 1);
+        ResetGrassCount();
     }
 }

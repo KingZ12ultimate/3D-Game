@@ -1414,7 +1414,7 @@ MonoBehaviour:
   terrain: {fileID: 0}
   terrainHeightMap: {fileID: 2800000, guid: ea51730a59464ea4c95d76f8d946b24b, type: 3}
   initializeGrassShader: {fileID: 7200000, guid: 076021d67fc37ca49a084496a67d7c78, type: 3}
-  cullGrassShader: {fileID: 7200000, guid: 7ad81d82b28b8f048a161febb8dc41e5, type: 3}
+  cullGrassShader: {fileID: 7200000, guid: 807a466f34122ac42a7a3d9ee23e3570, type: 3}
   density: 2
   fieldSize: 300
   cullDistance: 38
@@ -1430,5 +1430,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a6926a8e7fbdb54690f507e3bef102a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cullGrassShader: {fileID: 7200000, guid: 7ad81d82b28b8f048a161febb8dc41e5, type: 3}
+  cullShader: {fileID: 0}
   numInstances: 1

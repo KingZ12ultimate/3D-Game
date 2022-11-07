@@ -8,26 +8,45 @@
 
 #define NUM_GROUP_THREADS_X 64
 
-StructuredBuffer<int> Input;
+StructuredBuffer<float4> PositionsBuffer;
 RWStructuredBuffer<uint> VoteBuffer;
 RWStructuredBuffer<uint> ScanBuffer;
 RWStructuredBuffer<uint> GroupSumsBuffer;
 RWStructuredBuffer<uint> GroupSumsBufferIn;
 RWStructuredBuffer<uint> GroupSumsBufferOut;
-RWStructuredBuffer<int> Output;
+RWStructuredBuffer<float4> CulledGrassBuffer;
+RWStructuredBuffer<uint> GrassCounter;
 
 int NumGroups;
+float4x4 MATRIX_VP;
+float3 CameraPosition;
+float Distance;
 groupshared uint temp[2 * NUM_GROUP_THREADS_X];
 groupshared uint grouptemp[2 * 1024];
+
+bool InRange(float val, float min, float max)
+{
+    return val < max && val > min;
+}
 
 [numthreads(128, 1, 1)]
 void Vote (uint3 id : SV_DispatchthreadID)
 {
-    // TODO: insert actual code here!
-    VoteBuffer[id.x] = Input[id.x] < 0 ? 0 : 1;
+    int globalID = int(id.x);
+    float4 pos = float4(PositionsBuffer[globalID].xyz, 1.0f);
+    float4 viewSpace = mul(MATRIX_VP, pos);
+    float3 clipSpace = viewSpace.xyz;
+    clipSpace /= -viewSpace.w;
+    clipSpace.x = clipSpace.x / 2.0f + 0.5f;
+    clipSpace.y = clipSpace.y / 2.0f + 0.5f;
+    clipSpace.z = -viewSpace.w;
+    // bool inView = clipSpace.x < -0.2f || clipSpace.x > 1.2f || clipSpace.z <= -0.1f ? 0 : 1;
+    bool inView = InRange(clipSpace.x, 0.0f, 1.0f) * InRange(clipSpace.y, 0.0f, 1.0f) * (clipSpace.z > 0);
+    bool inDistance = distance(CameraPosition, pos.xyz) < 100;
+    VoteBuffer[globalID] = inView * inDistance;
 }
 
-[numthreads(2 * NUM_GROUP_THREADS_X, 1, 1)]
+[numthreads(NUM_GROUP_THREADS_X, 1, 1)]
 void Scan(uint3 threadID : SV_DispatchthreadID, uint3 groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID)
 {
     int globalID = (int) threadID.x;
@@ -117,7 +136,7 @@ void ScanGroups(uint3 threadID : SV_DispatchthreadID, uint3 groupThreadID : SV_G
         offset >>= 1;
         
         GroupMemoryBarrierWithGroupSync();
-        if (globalID < d)
+        if (localID < d)
         {
             int ai = offset * (2 * localID + 1) - 1;
             int bi = offset * (2 * localID + 2) - 1;
@@ -129,18 +148,19 @@ void ScanGroups(uint3 threadID : SV_DispatchthreadID, uint3 groupThreadID : SV_G
     
     GroupMemoryBarrierWithGroupSync();
 
-    GroupSumsBufferOut[2 * globalID] = grouptemp[2 * globalID];
-    GroupSumsBufferOut[2 * globalID + 1] = grouptemp[2 * globalID + 1];
+    GroupSumsBufferOut[2 * globalID] = grouptemp[2 * localID];
+    GroupSumsBufferOut[2 * globalID + 1] = grouptemp[2 * localID + 1];
 }
 
 [numthreads(128, 1, 1)]
 void Compact(uint3 threadID : SV_DispatchthreadID, uint3 groupID : SV_GroupID)
 {
-    int globalID = (int) threadID.x;
+    int globalID = int(threadID.x);
     uint groupSum = groupID.x > 0 ? GroupSumsBuffer[groupID.x] : 0;
     
     if (VoteBuffer[globalID] == 1)
     {
-        Output[ScanBuffer[globalID] + groupSum] = Input[globalID];
+        InterlockedAdd(GrassCounter[0], 1);
+        CulledGrassBuffer[ScanBuffer[globalID] + groupSum] = PositionsBuffer[globalID];
     }
 }
