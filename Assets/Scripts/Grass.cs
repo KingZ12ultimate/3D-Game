@@ -20,10 +20,11 @@ public class Grass : MonoBehaviour
     [Range(1, 20)]
     public int density = 1;
     public int fieldSize = 1;
+    public int chunks = 1;
     [Range(0f, 1000f)]
     public float cullDistance = 30;
 
-    private int numInstances, numThreadGroups, numVoteThreadGroups, numGroupScanThreadGroups;
+    private int numInstances, numInstancesPerChunk, numThreadGroups, numVoteThreadGroups, numGroupScanThreadGroups;
 
     #region Initialize Grass Shader IDs
     static readonly int positionsBufferID = Shader.PropertyToID("PositionsBuffer");
@@ -47,6 +48,14 @@ public class Grass : MonoBehaviour
     static readonly int distanceID = Shader.PropertyToID("Distacne");
     static readonly int numGroupsID = Shader.PropertyToID("NumGroups");
     #endregion
+
+    struct GrassChunk
+    {
+        ComputeBuffer positionsBuffer;
+        ComputeBuffer culledPositionsBuffer;
+        Bounds bounds;
+        
+    }
 
     private void PrintArray<T>(T[] arr)
     {
