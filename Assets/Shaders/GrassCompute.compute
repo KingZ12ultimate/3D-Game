@@ -7,8 +7,9 @@ RWStructuredBuffer<float4> PositionsBuffer;
 Texture2D<float4> _Heightmap;
 SamplerState sampler_Heightmap;
 
-int FieldSize, Density;
+int FieldSize, Density, chunkNum;
 float YScale, TerrainSize;
+int XOffset, YOffset;
 
 float UnpackHeightmap(float4 height)
 {

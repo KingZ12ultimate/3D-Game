@@ -13,16 +13,20 @@ public class Grass : MonoBehaviour
         groupSumsBuffer, scannedGroupSumsBuffer, grassCountbuffer;
     private Camera cam;
     private Bounds fieldBounds;
+    private GrassChunk[] chunks;
 
     private GraphicsBuffer commandBuffer;
     private GraphicsBuffer.IndirectDrawIndexedArgs[] commandData;
 
-    [Range(1, 20)]
-    public int density = 1;
-    public int fieldSize = 1;
-    public int chunks = 1;
-    [Range(0f, 1000f)]
-    public float cullDistance = 30;
+    [SerializeField, Range(1, 20)]
+    private int density = 1;
+    [SerializeField, Range(1, 1024)]
+    private int fieldSize = 1;
+    [SerializeField, Range(1, 20)]
+    private int numChunks = 1;
+    [SerializeField, Range(0f, 1000f)]
+    private float cullDistance = 30;
+    private float chunkSize;
 
     private int numInstances, numInstancesPerChunk, numThreadGroups, numVoteThreadGroups, numGroupScanThreadGroups;
 
@@ -49,18 +53,38 @@ public class Grass : MonoBehaviour
     static readonly int numGroupsID = Shader.PropertyToID("NumGroups");
     #endregion
 
-    struct GrassChunk
+    public struct GrassChunk
     {
         ComputeBuffer positionsBuffer;
         ComputeBuffer culledPositionsBuffer;
         Bounds bounds;
-        
+        Material material;
+        int numInstances;
     }
 
     private void PrintArray<T>(T[] arr)
     {
         for (int i = 0; i < arr.Length; i++)
             Debug.Log(arr[i]);
+    }
+
+    private void InitializeChunks()
+    {
+        for (int i = 0, x = 0; x < numChunks; x++)
+        {
+            for (int y = 0; y < numChunks; y++)
+            {
+                chunks[i] = InitializeChunk(x, y);
+                i++;
+            }
+        }
+    }
+
+    private GrassChunk InitializeChunk(int x, int y)
+    {
+        GrassChunk chunk = new GrassChunk();
+        
+        return chunk;
     }
 
     private void Awake()
@@ -73,6 +97,7 @@ public class Grass : MonoBehaviour
     private void OnEnable()
     {
         fieldBounds = new Bounds(Vector3.zero, Vector3.one * 1024);
+        chunkSize = fieldSize / numChunks;
         fieldSize *= density;
         positionsBuffer = new ComputeBuffer(fieldSize * fieldSize, 4 * sizeof(float));
         commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
