@@ -69,6 +69,8 @@ public class Grass : MonoBehaviour
     {
         public ComputeBuffer positionsBuffer;
         public ComputeBuffer culledPositionsBuffer;
+        public ComputeBuffer grassCounterBuffer;
+        public GraphicsBuffer.IndirectDrawIndexedArgs[] commandData;
         public Bounds bounds;
         public Material material;
     }
@@ -142,10 +144,11 @@ public class Grass : MonoBehaviour
         GrassChunk chunk = new GrassChunk();
         chunk.positionsBuffer = new ComputeBuffer(numInstancesPerChunk, 4 * sizeof(float));
         chunk.culledPositionsBuffer = new ComputeBuffer(numInstancesPerChunk, 4 * sizeof(float));
+        chunk.grassCounterBuffer = new ComputeBuffer(1, sizeof(int));
+        int chunkDim = Mathf.CeilToInt(fieldSize / numChunks);
 
-
-
-        Vector3 c = Vector3.zero;
+        Vector3 center = new Vector3(chunkDim * x, 0.0f, chunkDim * y);
+        chunk.bounds = new Bounds(center, new Vector3(-chunkDim, 700, chunkDim));
 
         return chunk;
     }
@@ -211,7 +214,7 @@ public class Grass : MonoBehaviour
     }
 
     #region Grass Count Methods
-    private void SetGrassCount()
+    private void SetGrassCount(GrassChunk chunk)
     {
         int[] count = new int[1];
         grassCountbuffer.GetData(count);
