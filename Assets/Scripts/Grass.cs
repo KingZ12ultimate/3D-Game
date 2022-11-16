@@ -26,7 +26,9 @@ public class Grass : MonoBehaviour
     private int numChunks = 1;
     [SerializeField, Range(0f, 1000f)]
     private float cullDistance = 30;
-    private float chunkSize;
+    [SerializeField, Range(1, 10)]
+    private int chunkDensity;
+    private int chunkSize;
 
     private int numInstances, numInstancesPerChunk, numThreadGroups, numVoteThreadGroups, numGroupScanThreadGroups;
 
@@ -34,6 +36,10 @@ public class Grass : MonoBehaviour
     static readonly int positionsBufferID = Shader.PropertyToID("PositionsBuffer");
     static readonly int fieldSizeID = Shader.PropertyToID("FieldSize");
     static readonly int densityID = Shader.PropertyToID("Density");
+    static readonly int numChunksID = Shader.PropertyToID("NumChunks");
+    static readonly int chunkSizeID = Shader.PropertyToID("ChunkSize");
+    static readonly int xOffsetID = Shader.PropertyToID("XOffset");
+    static readonly int yOffsetID = Shader.PropertyToID("YOffset");
     static readonly int yScaleID = Shader.PropertyToID("YScale");
     static readonly int terrainSizeID = Shader.PropertyToID("TerrainSize");
     static readonly int heightMapID = Shader.PropertyToID("_Heightmap");
@@ -53,38 +59,18 @@ public class Grass : MonoBehaviour
     static readonly int numGroupsID = Shader.PropertyToID("NumGroups");
     #endregion
 
-    public struct GrassChunk
-    {
-        ComputeBuffer positionsBuffer;
-        ComputeBuffer culledPositionsBuffer;
-        Bounds bounds;
-        Material material;
-        int numInstances;
-    }
-
     private void PrintArray<T>(T[] arr)
     {
         for (int i = 0; i < arr.Length; i++)
             Debug.Log(arr[i]);
     }
 
-    private void InitializeChunks()
+    public struct GrassChunk
     {
-        for (int i = 0, x = 0; x < numChunks; x++)
-        {
-            for (int y = 0; y < numChunks; y++)
-            {
-                chunks[i] = InitializeChunk(x, y);
-                i++;
-            }
-        }
-    }
-
-    private GrassChunk InitializeChunk(int x, int y)
-    {
-        GrassChunk chunk = new GrassChunk();
-        
-        return chunk;
+        public ComputeBuffer positionsBuffer;
+        public ComputeBuffer culledPositionsBuffer;
+        public Bounds bounds;
+        public Material material;
     }
 
     private void Awake()
@@ -97,9 +83,9 @@ public class Grass : MonoBehaviour
     private void OnEnable()
     {
         fieldBounds = new Bounds(Vector3.zero, Vector3.one * 1024);
-        chunkSize = fieldSize / numChunks;
-        fieldSize *= density;
-        positionsBuffer = new ComputeBuffer(fieldSize * fieldSize, 4 * sizeof(float));
+        numInstancesPerChunk = Mathf.CeilToInt(fieldSize / numChunks) * chunkDensity;
+        chunkSize = numInstancesPerChunk;
+        numInstancesPerChunk *= numInstancesPerChunk;
         commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
 
         numInstances = positionsBuffer.count;
@@ -128,18 +114,40 @@ public class Grass : MonoBehaviour
         groupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
         scannedGroupSumsBuffer = new ComputeBuffer(numThreadGroups, sizeof(int));
 
-        CalculatePositions();
-    }
-
-    private void CalculatePositions()
-    { 
-        initializeGrassShader.SetBuffer(0, positionsBufferID, positionsBuffer);
         initializeGrassShader.SetTexture(0, heightMapID, terrainHeightMap);
         initializeGrassShader.SetInt(fieldSizeID, fieldSize);
+        initializeGrassShader.SetInt(numChunksID, numChunks);
+        initializeGrassShader.SetInt(chunkSizeID, chunkSize);
         initializeGrassShader.SetInt(densityID, density);
         initializeGrassShader.SetFloat(yScaleID, terrain.terrainData.heightmapScale.y);
         initializeGrassShader.SetFloat(terrainSizeID, terrain.terrainData.size.x);
-        initializeGrassShader.Dispatch(0, Mathf.CeilToInt(fieldSize / 8f), Mathf.CeilToInt(fieldSize / 8f), 1);
+
+        InitializeChunks();
+    }
+
+    private void InitializeChunks()
+    {
+        chunks = new GrassChunk[numChunks * numChunks];
+        for (int x = 0; x < numChunks; x++)
+        {
+            for (int y = 0; y < numChunks; y++)
+            {
+                chunks[x + y * numChunks] = InitializeChunk(x, y);
+            }
+        }
+    }
+
+    private GrassChunk InitializeChunk(int x, int y)
+    {
+        GrassChunk chunk = new GrassChunk();
+        chunk.positionsBuffer = new ComputeBuffer(numInstancesPerChunk, 4 * sizeof(float));
+        chunk.culledPositionsBuffer = new ComputeBuffer(numInstancesPerChunk, 4 * sizeof(float));
+
+
+
+        Vector3 c = Vector3.zero;
+
+        return chunk;
     }
 
     private void CullGrass()

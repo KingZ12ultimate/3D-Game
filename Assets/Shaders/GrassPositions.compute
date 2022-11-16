@@ -7,9 +7,8 @@ RWStructuredBuffer<float4> PositionsBuffer;
 Texture2D<float4> _Heightmap;
 SamplerState sampler_Heightmap;
 
-int FieldSize, Density, chunkNum;
+int FieldSize, Density, NumChunks, ChunkSize, XOffset, YOffset;
 float YScale, TerrainSize;
-int XOffset, YOffset;
 
 float UnpackHeightmap(float4 height)
 {
@@ -24,18 +23,20 @@ float UnpackHeightmap(float4 height)
 void CalculateGrassPositions (uint3 id : SV_DispatchThreadID)
 {
     // TODO: insert actual code here!
-    if (id.x < uint(FieldSize) && id.y < uint(FieldSize))
+    if (id.x < uint(ChunkSize) && id.y < uint(ChunkSize))
     {
         float fieldSize = float(FieldSize);
         float density = float(Density);
         float yScale = float(YScale);
         float terrainSize = float(TerrainSize);
+        float chunkSize = float(ChunkSize);
         float4 pos = 0.0f;
-        pos.xz = id.xy * (1.0f / density);
-        float2 uv = pos.xz;
-        uv.xy /= terrainSize;
+        pos.x = id.x + chunkSize * XOffset;
+        pos.z = id.y + chunkSize * YOffset;
+        pos.xz *= (1.0f / density);
+        float2 uv = pos.xz / terrainSize;
         pos.y += UnpackHeightmap(_Heightmap.SampleLevel(sampler_Heightmap, uv, 0)) * yScale;
         pos.w = 1.0f;
-        PositionsBuffer[id.x + id.y * FieldSize] = pos;
+        PositionsBuffer[id.x + id.y * chunkSize] = pos;
     }
 }
