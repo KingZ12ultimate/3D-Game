@@ -214,7 +214,7 @@ public class Grass : MonoBehaviour
     }
 
     #region Grass Count Methods
-    private void SetGrassCount(GrassChunk chunk)
+    private void SetGrassCount()
     {
         int[] count = new int[1];
         grassCountbuffer.GetData(count);
